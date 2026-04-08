@@ -1,0 +1,7 @@
+{
+  "name": "01. English Program DPSS Virtues",
+  "description": "A high-performance neural-powered reading and vocabulary test generation system for advanced educators.",
+  "requestFramePermissions": [
+    "camera"
+  ]
+}

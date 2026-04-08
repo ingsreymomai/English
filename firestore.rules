@@ -1,0 +1,122 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // ===============================================================
+    // Assumed Data Model
+    // ===============================================================
+    //
+    // Collection: user_settings
+    // Document ID: user email
+    // Fields:
+    //   - brandSettings: map (optional)
+    //
+    // Collection: user_history
+    // Document ID: user email
+    // Fields:
+    //   - history: array of GeneratedTest objects
+    //
+    // Collection: test
+    // Document ID: connection
+    // Fields:
+    //   - status: string (optional)
+    //
+    // ===============================================================
+
+    // ===============================================================
+    // Helper Functions
+    // ===============================================================
+    
+    function isAuthenticated() {
+      return request.auth != null;
+    }
+
+    function isEmailOwner(email) {
+      return isAuthenticated() && request.auth.token.email == email;
+    }
+
+    function isAdmin() {
+      return isAuthenticated() &&
+        (get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin' ||
+          (request.auth.token.email == "sekchanthy2.0@gmail.com" && request.auth.token.email_verified == true));
+    }
+
+    function isPublicUser(email) {
+      return email == "public@dpss.edu";
+    }
+
+    // ===============================================================
+    // Validators
+    // ===============================================================
+
+    function isValidUser(data) {
+      return data.keys().hasOnly(['role']) &&
+             data.role in ['admin', 'user'];
+    }
+
+    function isValidUserSettings(data) {
+      return data.keys().hasAll(['brandSettings']) &&
+             data.brandSettings is map &&
+             data.brandSettings.keys().hasAll(['fontSize', 'fontWeight', 'letterSpacing', 'textTransform', 'schoolName', 'schoolAddress']) &&
+             data.brandSettings.fontSize is number &&
+             data.brandSettings.fontWeight is string &&
+             data.brandSettings.letterSpacing is number &&
+             data.brandSettings.textTransform in ['uppercase', 'none', 'capitalize'] &&
+             data.brandSettings.schoolName is string && data.brandSettings.schoolName.size() < 200 &&
+             data.brandSettings.schoolAddress is string && data.brandSettings.schoolAddress.size() < 500;
+    }
+
+    function isValidGeneratedTest(test) {
+      return test.keys().hasAll(['id', 'title', 'content', 'timestamp', 'authorEmail']) &&
+             test.id is string && test.id.size() < 100 &&
+             test.title is string && test.title.size() < 200 &&
+             test.content is string && test.content.size() < 100000 &&
+             test.timestamp is number &&
+             test.authorEmail is string;
+    }
+
+    function isValidUserHistory(data) {
+      return data.keys().hasOnly(['history']) &&
+             data.history is list &&
+             data.history.size() < 500;
+    }
+
+    // ===============================================================
+    // Rules
+    // ===============================================================
+
+    match /users/{userId} {
+      allow read: if isAuthenticated() && (request.auth.uid == userId || isAdmin());
+      allow create: if isAuthenticated() && (request.auth.uid == userId) && isValidUser(request.resource.data) && request.resource.data.role == 'user';
+      allow update: if isAdmin() && isValidUser(request.resource.data);
+      allow delete: if isAdmin();
+    }
+
+    match /user_settings/{email} {
+      allow read: if isEmailOwner(email) || isAdmin() || isPublicUser(email);
+      allow create, update: if (isEmailOwner(email) || isAdmin() || isPublicUser(email)) && isValidUserSettings(request.resource.data);
+      allow delete: if isAdmin();
+    }
+
+    match /user_history/{email} {
+      allow read: if isEmailOwner(email) || isAdmin() || isPublicUser(email);
+      allow create, update: if (isEmailOwner(email) || isAdmin() || isPublicUser(email)) && isValidUserHistory(request.resource.data);
+      allow delete: if isAdmin();
+    }
+
+    match /generatedTests/{testId} {
+      allow read: if isEmailOwner(resource.data.authorEmail) || isAdmin() || isPublicUser(resource.data.authorEmail);
+      allow create: if isAuthenticated() && isValidGeneratedTest(request.resource.data) && (isEmailOwner(request.resource.data.authorEmail) || isAdmin());
+      allow update: if isAdmin() && isValidGeneratedTest(request.resource.data);
+      allow delete: if isAdmin();
+    }
+
+    match /test/connection {
+      allow read: if true;
+    }
+
+    // Default deny
+    match /{path=**} {
+      allow read, write: if false;
+    }
+  }
+}
