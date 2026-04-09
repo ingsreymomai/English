@@ -19,11 +19,12 @@ interface WorksheetProps {
   isInstructionBackgroundEnabled: boolean;
   globalLayout: number;
   baseLayout: number;
+  instructionRulerStyle?: number;
   zoom?: number;
 }
 
 const Worksheet: React.FC<WorksheetProps> = ({
-  content, onContentChange, isGenerating, brandSettings, paperDesign, isRoundMcq, isColorfulBackgroundEnabled, isInstructionBackgroundEnabled, globalLayout, baseLayout, zoom = 100
+  content, onContentChange, isGenerating, brandSettings, paperDesign, isRoundMcq, isColorfulBackgroundEnabled, isInstructionBackgroundEnabled, globalLayout, baseLayout, instructionRulerStyle = 0, zoom = 100
 }) => {
   const editorRef = useRef<HTMLDivElement>(null);
 
@@ -38,6 +39,11 @@ const Worksheet: React.FC<WorksheetProps> = ({
                 <p class="text-sm md:text-lg font-bold italic tracking-[0.3em] uppercase">${brandSettings.schoolAddress}</p>
             </div>
         </div>
+        ${instructionRulerStyle > 0 ? `
+          <div class="w-full max-w-2xl mt-4">
+            <div class="instruction-ruler-${instructionRulerStyle}"></div>
+          </div>
+        ` : ''}
         <div class="mt-20 w-full max-w-2xl text-left font-bold text-[10px] space-y-4">
             <div class="flex justify-between border-b border-slate-200 pb-2 text-slate-400">
                 <span>NAME : _________________________________</span>
@@ -61,6 +67,54 @@ const Worksheet: React.FC<WorksheetProps> = ({
     return font ? font.family : "'Times New Roman', serif";
   }, [brandSettings.activeFont]);
 
+  const decorativeElements = useMemo(() => {
+    if (globalLayout < 10 || globalLayout > 14) return null;
+    
+    const count = Math.floor(Math.random() * 6) + 5; // 5 to 10
+    const elements = [];
+    const types = {
+      10: '★', // Stars
+      11: '🌸', // Flowers
+      12: '❤', // Hearts
+      13: '🫧', // Bubbles
+      14: '🍃'  // Leaves
+    };
+    const colors = {
+      10: '#fcd34d',
+      11: '#f9a8d4',
+      12: '#fca5a5',
+      13: '#bae6fd',
+      14: '#86efac'
+    };
+
+    for (let i = 0; i < count; i++) {
+      const top = Math.random() * 90 + 5;
+      const left = Math.random() * 90 + 5;
+      const size = Math.random() * 40 + 20;
+      const rotation = Math.random() * 360;
+      const opacity = Math.random() * 0.3 + 0.1;
+
+      elements.push(
+        <div
+          key={i}
+          className="absolute pointer-events-none select-none"
+          style={{
+            top: `${top}%`,
+            left: `${left}%`,
+            fontSize: `${size}pt`,
+            color: colors[globalLayout as keyof typeof colors],
+            opacity: opacity,
+            transform: `rotate(${rotation}deg)`,
+            zIndex: 0
+          }}
+        >
+          {types[globalLayout as keyof typeof types]}
+        </div>
+      );
+    }
+    return elements;
+  }, [globalLayout]);
+
   return (
     <div className="flex-1 overflow-auto p-2 md:p-12 no-scrollbar bg-slate-200/50">
       <div className="w-full max-w-[210mm] mx-auto pb-64 shadow-2xl worksheet-paper transition-transform duration-300 ease-in-out" style={{ transform: `scale(${zoom / 100})`, transformOrigin: 'top center' }}>
@@ -69,39 +123,45 @@ const Worksheet: React.FC<WorksheetProps> = ({
           .prose { 
             font-family: ${activeFontFamily} !important; 
             font-size: ${brandSettings.fontSize || 12}pt !important; 
-            line-height: 1.15 !important;
-            padding: 0.4in 0.5in !important;
+            line-height: 2 !important; /* Increased for better line alignment */
+            padding: 0.33in 0.5in !important; /* Adjusted to align with 24pt lines */
+            position: relative;
+            z-index: 10;
+            background: transparent !important;
           }
           @media (min-width: 768px) {
-            .prose { padding: 0.8in 1in !important; }
+            .prose { padding: 0.66in 1in !important; }
           }
-          .prose p, .prose div { margin-bottom: 8pt !important; }
-          .prose div[style*="background"] { padding: 15pt !important; border-radius: 8pt; margin-bottom: 20pt !important; }
-          .prose li, .prose ol, .prose ul { margin: 0 !important; padding: 0 !important; }
-          .prose table { border-collapse: collapse !important; width: 100% !important; border: 1.5pt solid black !important; table-layout: fixed; margin-bottom: 0 !important; }
-          .prose table table { border: none !important; margin-top: 5pt !important; width: auto !important; }
-          .prose table table td { border: none !important; padding: 2pt 10pt !important; }
+          .prose p, .prose div { margin-bottom: 0 !important; background: transparent !important; }
+          .prose div[style*="background"] { padding: 15pt !important; border-radius: 8pt; margin-bottom: 20pt !important; background-color: rgba(255,255,255,0.7) !important; backdrop-filter: blur(2px); }
+          .prose li, .prose ol, .prose ul { margin: 0 !important; padding: 0 !important; background: transparent !important; }
+          .prose table { border-collapse: collapse !important; width: 100% !important; border: 1.5pt solid black !important; table-layout: fixed; margin-bottom: 0 !important; background: transparent !important; }
+          .prose table table { border: none !important; margin-top: 5pt !important; width: auto !important; background: transparent !important; }
+          .prose table table td { border: none !important; padding: 2pt 10pt !important; background: transparent !important; }
           .prose table table tr td:first-child { padding-left: 30pt !important; }
-          .prose .options-table { width: 100% !important; table-layout: fixed !important; }
-          .prose .options-table td { padding-left: 30pt !important; }
+          .prose .options-table { width: 100% !important; table-layout: fixed !important; background: transparent !important; }
+          .prose .options-table td { padding-left: 30pt !important; background: transparent !important; }
           .prose .options-table tr td:first-child { padding-left: 30pt !important; }
           .prose .options-table tr td:not(:first-child) { padding-left: 10pt !important; }
           .prose .blank-line { border-bottom: 1pt solid black; display: inline-block; min-width: 50pt; margin: 0 5pt; }
           .prose .checkbox-box { border: 1pt solid black; width: 12pt; height: 12pt; display: inline-block; margin-right: 5pt; vertical-align: middle; }
-          .prose th, .prose td { border: 1pt solid black !important; padding: 6pt !important; vertical-align: top !important; }
+          .prose th, .prose td { border: 1pt solid black !important; padding: 6pt !important; vertical-align: top !important; background: transparent !important; }
           .prose .header-row, .prose tr:first-child td[colspan] { text-align: center !important; font-weight: bold !important; padding: 6px !important; }
-          .prose .header-row:not([style*="background"]), .prose tr:first-child td[colspan]:not([style*="background"]) { background-color: #334155; color: white; }
+          .prose .header-row:not([style*="background"]), .prose tr:first-child td[colspan]:not([style*="background"]) { background-color: #334155 !important; color: white !important; }
 
-          /* Zebra Striping for professional tables */
-          .prose tr:nth-child(even) td { background-color: #f8fafc; }
-          .prose tr:nth-child(odd) td { background-color: #ffffff; }
-          .prose .header-row td, .prose tr:first-child td { background-color: inherit; }
+          /* Zebra Striping - Disabled for decorative papers */
+          ${globalLayout === 0 ? `
+            .prose tr:nth-child(even) td { background-color: #f8fafc !important; }
+            .prose tr:nth-child(odd) td { background-color: #ffffff !important; }
+          ` : ''}
+          
           .prose .options-table tr td { background-color: transparent !important; }
           
           .prose .professional-table {
             border-collapse: collapse !important;
             width: 100% !important;
             margin-bottom: 20pt !important;
+            background: transparent !important;
           }
           .prose .professional-table thead th {
             background-color: #334155 !important;
@@ -113,6 +173,7 @@ const Worksheet: React.FC<WorksheetProps> = ({
           .prose .professional-table tbody td {
             padding: 8pt !important;
             border: 1pt solid #e2e8f0 !important;
+            background: transparent !important;
           }
 
           /* Teacher Answer Key Styling */
@@ -120,7 +181,7 @@ const Worksheet: React.FC<WorksheetProps> = ({
             margin-top: 40pt !important;
             padding: 20pt !important;
             border-top: 2pt dashed #cbd5e1 !important;
-            background-color: #f8fafc !important;
+            background-color: rgba(248, 250, 252, 0.8) !important;
             border-radius: 8pt !important;
           }
           .prose .answer-key-section h2 {
@@ -138,6 +199,25 @@ const Worksheet: React.FC<WorksheetProps> = ({
             display: inline !important;
             margin-right: 0.2em !important;
             font-size: inherit !important;
+          }
+
+          /* Ruler Table Styling */
+          .prose .ruler-table { border: none !important; border-collapse: collapse !important; }
+          .prose .ruler-table td { border: none !important; padding: 15pt !important; }
+          .prose .ruler-table tr td:first-child { border-right: 1.5pt solid #ff0000 !important; padding-right: 15pt !important; }
+          .prose .ruler-table tr td:last-child { padding-left: 15pt !important; }
+          .prose .ruler-table tr:first-child td[colspan] { border-right: none !important; border-bottom: 2pt solid #334155 !important; }
+
+          /* Native Column Layout */
+          .prose .column-layout {
+            column-count: 2;
+            column-gap: 40pt;
+            column-rule: 1.5pt solid black;
+            margin-top: 10pt;
+            padding: 10pt 0;
+          }
+          .prose .column-layout p, .prose .column-layout div {
+            break-inside: avoid-column;
           }
 
           /* Paper Designs */
@@ -267,7 +347,7 @@ const Worksheet: React.FC<WorksheetProps> = ({
             vertical-align: top !important;
           }
           .prose .ruler-table td:first-child:not([colspan="2"]) {
-            border-right: 1.5pt solid black !important;
+            border-right: 1.5pt solid #ff0000 !important;
           }
           .prose .ruler-table td[colspan="2"] {
             border-right: none !important;
@@ -399,13 +479,11 @@ const Worksheet: React.FC<WorksheetProps> = ({
           @media print {
             .no-print { display: none !important; }
             .bg-white { background-color: white !important; }
-          }
-
-          /* Global Layouts */
-          .layout-lined {
-            background-image: linear-gradient(#e5e7eb 1px, transparent 1px) !important;
-            background-size: 100% 24pt !important;
-            background-attachment: local !important;
+          /* Global Layouts - Structural Fix */
+          .layout-lined p, .layout-lined div:not([style*="background"]) { 
+            border-bottom: 1pt solid #cbd5e1 !important; 
+            margin-bottom: 0 !important;
+            padding-bottom: 4pt !important;
           }
           .layout-grid {
             background-image: linear-gradient(#e5e7eb 1px, transparent 1px), linear-gradient(90deg, #e5e7eb 1px, transparent 1px) !important;
@@ -413,9 +491,6 @@ const Worksheet: React.FC<WorksheetProps> = ({
             background-attachment: local !important;
           }
           .layout-rulers {
-            background-image: linear-gradient(#cbd5e1 1px, transparent 1px) !important;
-            background-size: 100% 30pt !important;
-            background-attachment: local !important;
             border-left: 40pt solid #f1f5f9 !important;
             position: relative;
           }
@@ -429,6 +504,36 @@ const Worksheet: React.FC<WorksheetProps> = ({
             background-color: #fca5a5;
             margin-left: 35pt;
           }
+
+          .layout-vertical-middle {
+            position: relative;
+          }
+          /* Removed ::after red line overlay */
+
+          .layout-s1 p, .layout-s1 div:not([style*="background"]) {
+            border-bottom: 1pt solid #cbd5e1 !important;
+          }
+          .layout-s2 {
+            border-left: 2pt solid #94a3b8 !important;
+          }
+          .layout-s2 p, .layout-s2 div:not([style*="background"]) {
+            border-bottom: 1pt solid #e2e8f0 !important;
+          }
+          .layout-s3 p, .layout-s3 div:not([style*="background"]) {
+            border-bottom: 1pt solid #94a3b8 !important;
+          }
+
+          }
+          .layout-s4 {
+            background-image: linear-gradient(90deg, #f1f5f9 1px, transparent 1px), linear-gradient(#f1f5f9 1px, transparent 1px) !important;
+            background-size: 40pt 40pt !important;
+          }
+
+          /* Instruction Ruler Styles */
+          .instruction-ruler-1 { height: 4pt; background: repeating-linear-gradient(90deg, #000, #000 10pt, transparent 10pt, transparent 15pt); width: 100%; margin: 10pt 0; }
+          .instruction-ruler-2 { height: 2pt; border-top: 1pt solid #000; border-bottom: 1pt solid #000; width: 100%; margin: 10pt 0; }
+          .instruction-ruler-3 { height: 6pt; background: linear-gradient(90deg, #334155 0%, #94a3b8 50%, #334155 100%); border-radius: 3pt; width: 100%; margin: 10pt 0; }
+          .instruction-ruler-4 { height: 3pt; border-bottom: 3pt double #000; width: 100%; margin: 10pt 0; }
 
           /* Colorful Layouts */
           .layout-clean-white { background-color: #ffffff !important; border: 2pt solid #f1f5f9 !important; box-shadow: inset 0 0 0 10pt #f8fafc !important; }
@@ -452,50 +557,30 @@ const Worksheet: React.FC<WorksheetProps> = ({
             border: 15pt solid #fff !important;
             outline: 2pt solid #fcd34d !important;
             outline-offset: -10pt !important;
-            background-image: url("data:image/svg+xml,%3Csvg width='40' height='40' viewBox='0 0 40 40' xmlns='http://www.w3.org/2000/svg'%3E%3Cpath d='M20 0l2 6h6l-5 4 2 6-5-4-5 4 2-6-5-4h6z' fill='%23fcd34d' fill-opacity='0.4'/%3E%3C/svg%3E") !important;
-            background-position: 0 0, 100% 0, 0 100%, 100% 100% !important;
-            background-repeat: no-repeat !important;
-            background-size: 40pt 40pt !important;
           }
           .layout-flowers { 
             background-color: #fff !important; 
             border: 20pt solid #fff !important;
             outline: 3pt double #f9a8d4 !important;
             outline-offset: -12pt !important;
-            background-image: url("data:image/svg+xml,%3Csvg width='60' height='60' viewBox='0 0 60 60' xmlns='http://www.w3.org/2000/svg'%3E%3Cpath d='M30 10c-5 0-5 5-5 5s-5 0-5 5 5 5 5 5 0 5 5 5 5-5 5-5 5 0 5-5-5-5-5-5 0-5 5-5z' fill='%23f9a8d4' fill-opacity='0.4'/%3E%3C/svg%3E") !important;
-            background-position: -10pt -10pt, calc(100% + 10pt) -10pt, -10pt calc(100% + 10pt), calc(100% + 10pt) calc(100% + 10pt) !important;
-            background-repeat: no-repeat !important;
-            background-size: 60pt 60pt !important;
           }
           .layout-hearts { 
             background-color: #fff !important; 
             border: 15pt solid #fff !important;
             outline: 2pt dashed #fca5a5 !important;
             outline-offset: -8pt !important;
-            background-image: url("data:image/svg+xml,%3Csvg width='40' height='40' viewBox='0 0 40 40' xmlns='http://www.w3.org/2000/svg'%3E%3Cpath d='M20 35c-10-5-15-12-15-18 0-5 4-9 9-9 3 0 5 2 6 4 1-2 3-4 6-4 5 0 9 4 9 9 0 6-5 13-15 18z' fill='%23fca5a5' fill-opacity='0.4'/%3E%3C/svg%3E") !important;
-            background-position: 5pt 5pt, calc(100% - 5pt) 5pt, 5pt calc(100% - 5pt), calc(100% - 5pt) calc(100% - 5pt) !important;
-            background-repeat: no-repeat !important;
-            background-size: 35pt 35pt !important;
           }
           .layout-bubbles { 
             background-color: #f0f9ff !important; 
             border: 20pt solid #f0f9ff !important;
             outline: 4pt solid #bae6fd !important;
             outline-offset: -15pt !important;
-            background-image: url("data:image/svg+xml,%3Csvg width='100' height='100' viewBox='0 0 100 100' xmlns='http://www.w3.org/2000/svg'%3E%3Ccircle cx='20' cy='20' r='10' fill='%23bae6fd' fill-opacity='0.5'/%3E%3Ccircle cx='70' cy='60' r='15' fill='%23bae6fd' fill-opacity='0.4'/%3E%3C/svg%3E") !important;
-            background-position: center !important;
-            background-repeat: space !important;
-            background-size: 150pt 150pt !important;
           }
           .layout-leaves { 
             background-color: #f0fdf4 !important; 
             border: 15pt solid #f0fdf4 !important;
             outline: 2pt solid #86efac !important;
             outline-offset: -10pt !important;
-            background-image: url("data:image/svg+xml,%3Csvg width='80' height='80' viewBox='0 0 80 80' xmlns='http://www.w3.org/2000/svg'%3E%3Cpath d='M40 10c0 20-20 30-20 30s20 10 20 30c0-20 20-30 20-30s-20-10-20-30z' fill='%2386efac' fill-opacity='0.4'/%3E%3C/svg%3E") !important;
-            background-position: 0 0, 100% 0, 0 100%, 100% 100% !important;
-            background-repeat: no-repeat !important;
-            background-size: 50pt 50pt !important;
           }
           .layout-rainbow { 
             background: linear-gradient(to bottom, #fee2e2, #fef3c7, #ecfdf5, #eff6ff, #f5f3ff) !important; 
@@ -524,39 +609,49 @@ const Worksheet: React.FC<WorksheetProps> = ({
           }
         `}</style>
         
-        <div className={clsx(
-          "worksheet-page prose min-h-[297mm] p-[0.8in_1in] relative rounded-sm",
-          PAPER_DESIGNS[paperDesign] || '',
-          isColorfulBackgroundEnabled ? 'bg-blue-50/50' : 'bg-white',
-          baseLayout === 1 && 'layout-lined',
-          baseLayout === 2 && 'layout-grid',
-          baseLayout === 3 && 'layout-rulers',
-          globalLayout === 0 && 'layout-clean-white',
-          globalLayout === 1 && 'layout-orange-mix',
-          globalLayout === 2 && 'layout-modern-emerald',
-          globalLayout === 3 && 'layout-soft-lavender',
-          globalLayout === 4 && 'layout-mint',
-          globalLayout === 5 && 'layout-peach',
-          globalLayout === 6 && 'layout-sky',
-          globalLayout === 7 && 'layout-lavender',
-          globalLayout === 8 && 'layout-citrus',
-          globalLayout === 9 && 'layout-rose',
-          globalLayout === 10 && 'layout-stars',
-          globalLayout === 11 && 'layout-flowers',
-          globalLayout === 12 && 'layout-hearts',
-          globalLayout === 13 && 'layout-bubbles',
-          globalLayout === 14 && 'layout-leaves',
-          globalLayout === 15 && 'layout-rainbow',
-          globalLayout === 16 && 'layout-galaxy',
-          globalLayout === 17 && 'layout-notebook',
-          globalLayout === 18 && 'layout-vintage',
-          globalLayout === 19 && 'layout-modern'
-        )}
-             ref={editorRef}
-             contentEditable={!isGenerating}
-             onInput={(e) => onContentChange(e.currentTarget.innerHTML)}
-             dangerouslySetInnerHTML={{ __html: content || placeholderHtml }}
-        />
+        <div 
+          className={clsx(
+            "worksheet-page prose min-h-[297mm] p-[0.8in_1in] relative rounded-sm",
+            PAPER_DESIGNS[paperDesign] || '',
+            isColorfulBackgroundEnabled ? 'bg-blue-50/50' : 'bg-white',
+            baseLayout === 1 && 'layout-lined',
+            baseLayout === 2 && 'layout-grid',
+            baseLayout === 3 && 'layout-vertical-middle',
+            baseLayout === 4 && 'layout-rulers',
+            baseLayout === 5 && 'layout-s1',
+            baseLayout === 6 && 'layout-s2',
+            baseLayout === 7 && 'layout-s3',
+            baseLayout === 8 && 'layout-s4',
+            globalLayout === 0 && 'layout-clean-white',
+            globalLayout === 1 && 'layout-orange-mix',
+            globalLayout === 2 && 'layout-modern-emerald',
+            globalLayout === 3 && 'layout-soft-lavender',
+            globalLayout === 4 && 'layout-mint',
+            globalLayout === 5 && 'layout-peach',
+            globalLayout === 6 && 'layout-sky',
+            globalLayout === 7 && 'layout-lavender',
+            globalLayout === 8 && 'layout-citrus',
+            globalLayout === 9 && 'layout-rose',
+            globalLayout === 10 && 'layout-stars',
+            globalLayout === 11 && 'layout-flowers',
+            globalLayout === 12 && 'layout-hearts',
+            globalLayout === 13 && 'layout-bubbles',
+            globalLayout === 14 && 'layout-leaves',
+            globalLayout === 15 && 'layout-rainbow',
+            globalLayout === 16 && 'layout-galaxy',
+            globalLayout === 17 && 'layout-notebook',
+            globalLayout === 18 && 'layout-vintage',
+            globalLayout === 19 && 'layout-modern'
+          )}
+               ref={editorRef}
+               contentEditable={!isGenerating}
+               onInput={(e) => onContentChange(e.currentTarget.innerHTML)}
+               dangerouslySetInnerHTML={{ __html: content || placeholderHtml }}
+          >
+        </div>
+        <div id="decorative-elements-container" className="absolute inset-0 pointer-events-none overflow-hidden">
+          {decorativeElements}
+        </div>
       </div>
     </div>
   );

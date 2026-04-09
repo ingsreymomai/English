@@ -129,7 +129,8 @@ function App() {
   const [isRandomSubject, setIsRandomSubject] = useState(false);
   const [showSubjectModal, setShowSubjectModal] = useState(false);
   const [globalLayout, setGlobalLayout] = useState<number>(0); // 0-19: Paper Styles
-  const [baseLayout, setBaseLayout] = useState<number>(0); // 0: Clean, 1: Lined, 2: Grid, 3: Rulers
+  const [baseLayout, setBaseLayout] = useState<number>(0); // 0: Clean, 1: Lined, 2: Grid, 3: Vertical Middle, 4: Rulers Left, 5-8: S1-S4
+  const [instructionRulerStyle, setInstructionRulerStyle] = useState<number>(0); // 0: None, 1-4: S1-S4
   const [paperDesign, setPaperDesign] = useState<number>(0); // 0-10 (11 designs)
   const [architectTab, setArchitectTab] = useState<'Grammar' | 'Vocabulary' | 'Reading'>('Grammar');
   const [mcqLayout, setMcqLayout] = useState<'single' | 'double' | 'quad'>('single'); // A,B,C,D in 1, 2, or 4 lines
@@ -1073,14 +1074,32 @@ function App() {
             - Every <td> MUST have a border: 1pt solid #334155; padding: 10px; vertical-align: top;
             - This creates a professional worksheet grid with ${effectiveCols} columns.)`;
       } else if (baseLayout === 3) {
-        // Option 4 (Ruler): 2 columns with a middle ruler
+        // Option 4 (Vertical Ruler Middle): 2 columns with a middle ruler
         formatInstruction = `(MANDATORY FORMAT: Use a real HTML <table> with 2 columns. 
             ${isPartBackgroundEnabled ? 'MANDATORY: Apply a unique background style class from the PART BACKGROUND PROTOCOL to this <table> tag.' : ''}
             - Row 1: Header row spanning both columns (colspan="2"), with ${headerStyle}. Title: "PART ${String.fromCharCode(65 + idx)}: ${t.professionalLabel || t.label}".
             - Subsequent rows: Distribute the ${overrideItems} items STRICTLY EVENLY across 2 columns.
             - MANDATORY: The <table> MUST have a class="ruler-table". 
             - The middle border between columns MUST be a solid 1.5pt line (the "ruler").
-            - No outer borders or horizontal borders between items.)`;
+            - DO NOT use outer borders. ONLY the middle vertical border is allowed.
+            - This is the "Middle Ruler" layout where content is split into two halves.)`;
+      } else if (baseLayout === 4) {
+        // Option 5 (Rulers Left): 2 columns, 1 row (Header) + N rows (Items)
+        formatInstruction = `(MANDATORY FORMAT: Use a real HTML <table> with 2 columns. 
+          - Row 1: Header row spanning both columns (colspan="2"), with ${headerStyle}. Title: "PART ${String.fromCharCode(65 + idx)}: ${t.professionalLabel || t.label}".
+          - Subsequent Rows: Each row MUST have EXACTLY 2 cells (<td>). 
+          - Cell 1: The Question Number and Instruction (e.g. "1. Choose the correct answer:").
+          - Cell 2: The actual question content or MCQ options.
+          - MANDATORY: The table MUST have a vertical border between the two columns to act as a "Ruler".
+          - Use class="ruler-table" for the <table> tag.
+          - This is the "Ruler" layout where the left column is for numbering and the right column is for content.)`;
+      } else if (baseLayout >= 5) {
+        // Options 6-9 (S1-S4): Similar to Clean but with different background lines
+        formatInstruction = `(MANDATORY FORMAT: Use a real HTML <table> with 1 column and EXACTLY 2 rows. 
+          - Row 1: Header row with ${headerStyle}. Title: "PART ${String.fromCharCode(65 + idx)}: ${t.professionalLabel || t.label}".
+          - Row 2: A single <td> containing ALL ${overrideItems} items. MANDATORY: Every numbered item (1., 2., 3., etc.) MUST start on a NEW LINE using an HTML <p> or <br> tag.
+          - The table MUST have a border: 1.5pt solid #334155.
+          - This is a "Lined" layout with special background lines.)`;
       } else {
         formatInstruction = `(FORMAT: Standard numbered list. ${isPartBackgroundEnabled ? 'MANDATORY: Wrap the entire part in a <div class="..."> with a unique background style class from the PART BACKGROUND PROTOCOL.' : ''} Every numbered item (1., 2., 3., etc.) MUST start on a NEW LINE using an HTML <p> or <br> tag. DO NOT bunch them together in a single paragraph. DO NOT use tables or columns.)`;
       }
@@ -1250,8 +1269,9 @@ ${componentLogic}
       }
     } catch (error: any) {
       console.error("Generation failed:", error);
-      alert("Neural synthesis failed. Please check your connection or API keys.");
+      setGenerationError(error.message || "Neural synthesis failed. Please check your connection or API keys.");
       setIsGenerating(false);
+      setGenerationStep('');
     }
   };
 
@@ -1259,11 +1279,28 @@ ${componentLogic}
     const userMsg: ChatMessage = { id: `msg-${Date.now()}`, role: 'user', text: msg, timestamp: Date.now() };
     setChatMessages(prev => [...prev, userMsg]);
     setIsGenerating(true);
-    const context = `Assistant Mode. Worksheet: ${worksheetContent.slice(0, 1000)}. Edit based on: ${msg}`;
-    const result = await callNeuralEngine(activeEngine, msg, context, file || sourceMaterial, externalKeys);
-    setChatMessages(prev => [...prev, { id: `msg-bot-${Date.now()}`, role: 'architect', text: "Synthesis updated.", timestamp: Date.now() }]);
-    setWorksheetContent(result.text);
-    setIsGenerating(false);
+    setGenerationStep('Assistant Processing...');
+    try {
+      const context = `Assistant Mode. Worksheet: ${worksheetContent.slice(0, 1000)}. Edit based on: ${msg}`;
+      const result = await callNeuralEngine(activeEngine, msg, context, file || sourceMaterial, externalKeys);
+      
+      if (result.text.includes('Error:')) {
+        setGenerationError(result.text);
+        setIsGenerating(false);
+        setGenerationStep('');
+        return;
+      }
+
+      setChatMessages(prev => [...prev, { id: `msg-bot-${Date.now()}`, role: 'architect', text: "Synthesis updated.", timestamp: Date.now() }]);
+      setWorksheetContent(result.text);
+      setIsGenerating(false);
+      setGenerationStep('');
+    } catch (error: any) {
+      console.error("Assistant failed:", error);
+      setGenerationError(error.message || "Assistant synthesis failed.");
+      setIsGenerating(false);
+      setGenerationStep('');
+    }
   };
 
   const handlePrint = () => {
@@ -1311,7 +1348,8 @@ ${componentLogic}
       paperStyles,
       isRoundMcq,
       globalLayout,
-      baseLayout
+      baseLayout,
+      instructionRulerStyle
     );
     
     setExportSettings(prev => ({ ...prev, showModal: false }));
@@ -1522,14 +1560,21 @@ ${componentLogic}
                   <div className="flex bg-white/20 backdrop-blur-md p-1 rounded-xl gap-1 border border-white/30 min-w-max">
                     <button 
                       onClick={() => {
-                        const next = (baseLayout + 1) % 4;
+                        const next = (baseLayout + 1) % 9;
                         setBaseLayout(next);
-                        if (next === 3) setMcqLayout('quad');
+                        if (next === 4) setMcqLayout('quad');
                       }}
                       className={`px-4 lg:px-6 py-2 rounded-lg text-[11px] font-bold flex items-center gap-2 transition-all whitespace-nowrap ${baseLayout > 0 ? 'bg-blue-600 text-white shadow-md' : 'text-slate-700 hover:bg-white/40'}`}
                     >
-                      <i className={`fa-solid ${baseLayout === 3 ? 'fa-columns' : baseLayout === 2 ? 'fa-table-columns' : baseLayout === 1 ? 'fa-grip-lines' : 'fa-list'} text-[10px]`}></i> 
-                      {baseLayout === 0 ? 'Option 1' : baseLayout === 1 ? 'Option 2' : baseLayout === 2 ? 'Option 3' : 'Option 4'}
+                      <i className={`fa-solid ${baseLayout === 4 ? 'fa-columns' : baseLayout === 3 ? 'fa-arrows-left-right' : baseLayout === 2 ? 'fa-table-columns' : baseLayout === 1 ? 'fa-grip-lines' : 'fa-list'} text-[10px]`}></i> 
+                      {baseLayout === 0 ? 'Option 1' : baseLayout === 1 ? 'Option 2' : baseLayout === 2 ? 'Option 3' : baseLayout === 3 ? 'Option 4' : baseLayout === 4 ? 'Option 5' : `Option ${baseLayout + 1}`}
+                    </button>
+                    <button 
+                      onClick={() => setInstructionRulerStyle((instructionRulerStyle + 1) % 5)}
+                      className={`px-4 lg:px-6 py-2 rounded-lg text-[11px] font-bold flex items-center gap-2 transition-all whitespace-nowrap ${instructionRulerStyle > 0 ? 'bg-emerald-600 text-white shadow-md' : 'text-slate-700 hover:bg-white/40'}`}
+                    >
+                      <i className="fa-solid fa-ruler-horizontal text-[10px]"></i>
+                      {instructionRulerStyle === 0 ? 'Ruler: None' : `Ruler: S${instructionRulerStyle}`}
                     </button>
                     <button 
                       onClick={() => setShowSettings(true)}
@@ -1967,6 +2012,7 @@ ${componentLogic}
               isInstructionBackgroundEnabled={isInstructionBackgroundEnabled}
               globalLayout={globalLayout}
               baseLayout={baseLayout}
+              instructionRulerStyle={instructionRulerStyle}
               zoom={previewZoom}
             />
           </div>
@@ -2183,7 +2229,12 @@ ${componentLogic}
                     <div className={`w-full max-w-[500px] aspect-[1/1.414] bg-white shadow-[0_50px_100px_-20px_rgba(0,0,0,0.5)] rounded-sm overflow-hidden transition-all duration-700 ${
                       baseLayout === 1 ? 'layout-lined' : 
                       baseLayout === 2 ? 'layout-grid' : 
-                      baseLayout === 3 ? 'layout-rulers' : ''
+                      baseLayout === 3 ? 'layout-vertical-middle' :
+                      baseLayout === 4 ? 'layout-rulers' : 
+                      baseLayout === 5 ? 'layout-s1' :
+                      baseLayout === 6 ? 'layout-s2' :
+                      baseLayout === 7 ? 'layout-s3' :
+                      baseLayout === 8 ? 'layout-s4' : ''
                     } ${
                       globalLayout === 0 ? 'layout-clean-white' :
                       globalLayout === 1 ? 'layout-orange-mix' :
@@ -2226,10 +2277,16 @@ ${componentLogic}
                         </div>
                       </div>
                       {/* Ruler Simulation for Preview */}
-                      {baseLayout === 3 && (
+                      {baseLayout === 4 && (
                         <div className="absolute left-0 top-0 bottom-0 w-[40px] bg-slate-50 border-r-2 border-red-300 flex items-center justify-center">
                           <div className="h-full w-[1px] bg-red-200"></div>
                         </div>
+                      )}
+                      {baseLayout === 3 && (
+                        <div className="absolute left-1/2 top-0 bottom-0 w-[2px] bg-red-500 opacity-50"></div>
+                      )}
+                      {instructionRulerStyle > 0 && (
+                        <div className="absolute top-[100px] left-1/2 -translate-x-1/2 w-3/4 h-[2px] bg-slate-800"></div>
                       )}
                     </div>
                   </div>

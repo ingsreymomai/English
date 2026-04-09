@@ -17,7 +17,8 @@ export const exportToWord = async (
   paperStyles?: any,
   isRoundMcq: boolean = false,
   globalLayout: number = 0,
-  baseLayout: number = 0
+  baseLayout: number = 0,
+  instructionRulerStyle: number = 0
 ) => {
   const tempDiv = document.createElement('div');
   tempDiv.innerHTML = htmlContent;
@@ -25,8 +26,8 @@ export const exportToWord = async (
   const headerDiv = document.createElement('div');
   headerDiv.innerHTML = headerHtml;
 
-  const linePercentage = `${parseFloat(lineHeight) * 100}%`;
-  const exactLineHeight = `${(parseFloat(lineHeight) * 12).toFixed(1)}pt`;
+  const linePercentage = `200%`;
+  const exactLineHeight = `24pt`;
 
   // 1. FIX: Convert all images to Base64 (This prevents "Empty Boxes")
   const images = [...Array.from(tempDiv.querySelectorAll('img')), ...Array.from(headerDiv.querySelectorAll('img'))];
@@ -177,20 +178,88 @@ export const exportToWord = async (
     }
   });
 
-  // 3. FIX: Wrap everything in 100% Tables (This stops things from overlapping)
+  // 2.2 FIX: Handle Header for Middle Ruler (Option 4)
+  if (baseLayout === 3) {
+    // Wrap the entire header in a 2-column table to ensure the red line continues
+    const headerContent = headerDiv.innerHTML;
+    headerDiv.innerHTML = `
+      <table border="0" cellspacing="0" cellpadding="0" width="100%" style="width: 100%; border-collapse: collapse; mso-table-lspace:0pt; mso-table-rspace:0pt;">
+        <tr>
+          <td width="50%" style="padding: 0; border-right: 1.5pt solid #ff0000; mso-border-right-alt: 1.5pt solid #ff0000; vertical-align: top;">
+            ${headerContent}
+          </td>
+          <td width="50%" style="padding: 0; vertical-align: top;">
+            <!-- Spacer for ruler continuity -->
+          </td>
+        </tr>
+      </table>
+    `;
+    
+    // Now specifically handle the Name/Date flex container inside the first column
+    const headerContainer = headerDiv.querySelector('.flex.justify-between');
+    if (headerContainer) {
+      const leftContent = headerContainer.firstElementChild?.innerHTML || '';
+      const rightContent = headerContainer.lastElementChild?.innerHTML || '';
+      
+      headerContainer.outerHTML = `
+        <table border="0" cellspacing="0" cellpadding="0" width="100%" style="width: 100%; border-collapse: collapse; margin: 0; mso-table-lspace:0pt; mso-table-rspace:0pt;">
+          <tr>
+            <td width="50%" style="padding: 5pt; border-right: 1.5pt solid #ff0000; mso-border-right-alt: 1.5pt solid #ff0000; vertical-align: top;">
+              ${leftContent}
+            </td>
+            <td width="50%" style="padding: 5pt; vertical-align: top;">
+              ${rightContent}
+            </td>
+          </tr>
+        </table>
+      `;
+    }
+  }
   // This is the "Magic Fix" for Word
-  const sections = tempDiv.children;
+  let sections = Array.from(tempDiv.children);
+  
+  // If the only child is the prose div, unwrap it to process its children
+  if (sections.length === 1 && sections[0].classList.contains('prose')) {
+    sections = Array.from(sections[0].children);
+  } else if (sections.length > 1) {
+    // Filter out decorative container if it's at the top level
+    sections = sections.filter(el => el.id !== 'decorative-elements-container');
+    // If we have a prose div among others, we might need to unwrap it too
+    const proseIndex = sections.findIndex(el => el.classList.contains('prose'));
+    if (proseIndex !== -1) {
+      const prose = sections[proseIndex];
+      sections.splice(proseIndex, 1, ...Array.from(prose.children));
+    }
+  }
+
   let finalHtml = "";
   for (let i = 0; i < sections.length; i++) {
-    const el = sections[i];
+    const el = sections[i] as HTMLElement;
+    
+    if (el.id === 'decorative-elements-container' || el.classList.contains('decorative-element')) {
+      continue;
+    }
+
     // If it's a new Set title, force a page break
     const isNewSet = el.textContent?.toUpperCase().includes('(SET');
     const pageBreak = isNewSet && i > 0 ? 'style="page-break-before:always"' : '';
     
+    if (el.style.backdropFilter || el.getAttribute('style')?.includes('backdrop-filter')) {
+      el.style.backgroundColor = '#f8fafc';
+      el.style.setProperty('mso-shading', 'windowtext 0% #f8fafc');
+    }
+    
+    // If it's a "Part" header or instruction block
+    if (el.classList.contains('bg-relax-blue') || el.style.backgroundColor === 'rgb(240, 249, 255)') {
+      el.style.backgroundColor = '#f0f9ff';
+      el.style.setProperty('mso-shading', 'windowtext 0% #f0f9ff');
+    }
+    // ... add more as needed
+
     finalHtml += `
-      <table border="0" cellspacing="0" cellpadding="0" width="100%" ${pageBreak} style="margin: 0; padding: 0; border-collapse: collapse; mso-table-lspace:0pt; mso-table-rspace:0pt;">
+      <table border="0" cellspacing="0" cellpadding="0" width="100%" ${pageBreak} style="margin: 0; padding: 0; border-collapse: collapse; mso-table-lspace:0pt; mso-table-rspace:0pt; width: 100%;">
         <tr>
-          <td align="left" style="padding: 0; margin: 0; font-family: '${fontFamily}', serif; font-size: 12pt; line-height: ${exactLineHeight}; mso-line-height-rule: exactly;">
+          <td align="left" style="padding: 0; margin: 0; font-family: '${fontFamily}', serif; font-size: 12pt; line-height: ${exactLineHeight}; mso-line-height-rule: exactly; border: none;">
             ${el.outerHTML}
           </td>
         </tr>
@@ -224,31 +293,56 @@ export const exportToWord = async (
     } else {
       // Top-level tables
       // Robust detection: check for class OR if it's a 2-column table with specific border styles
-      const hasRulerClass = table.classList.contains('ruler-table');
-      const hasRulerStyle = Array.from(table.querySelectorAll('td')).some(td => td.style.borderRight && td.style.borderRight.includes('solid'));
-      const isRulerTable = hasRulerClass || (hasRulerStyle && table.rows[0]?.cells.length === 2);
+      const hasRulerClass = table.classList.contains('ruler-table') || table.className.includes('ruler-table');
+      const isTwoCol = table.rows.length > 0 && table.rows[0].cells.length === 2;
+      // Also check if any cell has a border-right style already
+      const hasVerticalBorder = Array.from(table.querySelectorAll('td')).some(td => {
+        const style = td.getAttribute('style') || '';
+        return style.includes('border-right') && style.includes('solid');
+      });
       
+      const isRulerTable = hasRulerClass || hasVerticalBorder || (isTwoCol && table.getAttribute('data-type') === 'ruler') || (baseLayout === 3 && isTwoCol);
+      
+      // If it's a ruler table, we MUST force the border
       if (isRulerTable) {
         table.setAttribute('border', '0');
         table.style.border = 'none';
         table.style.width = '100%';
-        table.style.borderCollapse = 'collapse';
-        const cells = table.querySelectorAll('td');
-        cells.forEach((c) => {
-          const isFirstCol = c.previousElementSibling === null;
-          const isHeader = c.getAttribute('colspan') === '2' || (c.parentElement === table.rows[0] && table.rows[0].cells.length === 1);
-          
-          (c as HTMLElement).style.padding = '15pt';
-          (c as HTMLElement).style.verticalAlign = 'top';
-          
-          if (isFirstCol && !isHeader) {
-            (c as HTMLElement).style.borderRight = '1.5pt solid black';
-            (c as HTMLElement).style.width = '50%';
-          }
-          if (isHeader) {
-            (c as HTMLElement).style.borderBottom = '1.5pt solid black';
-            (c as HTMLElement).style.textAlign = 'center';
-          }
+        table.style.borderCollapse = 'collapse'; // Changed from separate to collapse for better Word support
+        (table.style as any).msoTableLspace = '0pt';
+        (table.style as any).msoTableRspace = '0pt';
+        table.style.margin = '0';
+        
+        const rows = Array.from(table.rows);
+        rows.forEach((row) => {
+          const cells = Array.from(row.cells);
+          cells.forEach((c, idx) => {
+            const isFirstCol = idx === 0;
+            const isHeader = c.getAttribute('colspan') === '2' || (row === table.rows[0] && row.cells.length === 1);
+            
+            const cell = c as HTMLElement;
+            cell.style.padding = '15pt';
+            cell.style.verticalAlign = 'top';
+            cell.style.border = 'none'; 
+            
+            if (isFirstCol && !isHeader && row.cells.length === 2) {
+              // THIS IS THE CRITICAL RULER LINE - Using RED as requested/shown in image
+              // We apply it to EVERY cell in the first column to ensure a continuous line
+              cell.style.borderRight = '1.5pt solid #ff0000'; 
+              cell.style.setProperty('mso-border-right-alt', '1.5pt solid #ff0000');
+              cell.style.width = '50%'; 
+              cell.style.paddingRight = '15pt';
+            }
+            if (!isFirstCol && !isHeader && row.cells.length === 2) {
+              cell.style.width = '50%';
+              cell.style.paddingLeft = '15pt';
+            }
+            if (isHeader) {
+              cell.style.borderBottom = '2.5pt solid #334155';
+              cell.style.setProperty('mso-border-bottom-alt', '2.5pt solid #334155');
+              cell.style.textAlign = 'center';
+            }
+          });
         });
       } else {
         table.setAttribute('border', '1');
@@ -326,13 +420,13 @@ export const exportToWord = async (
     paperStyleCss = 'background-color: #fff1f2; border: 1pt solid #ffe4e6;';
     bodyBgColor = '#fff1f2';
   } else if (globalLayout === 10) { // Stars
-    paperStyleCss = 'background-color: #ffffff; border: 10pt solid #fef3c7; padding: 10pt;';
+    paperStyleCss = 'background-color: #ffffff; border: 10pt solid #fef3c7; padding: 10pt; border-style: double;';
     bodyBgColor = '#ffffff';
   } else if (globalLayout === 11) { // Flowers
-    paperStyleCss = 'background-color: #ffffff; border: 10pt solid #fce7f3; padding: 10pt;';
+    paperStyleCss = 'background-color: #ffffff; border: 10pt solid #fce7f3; padding: 10pt; border-style: double;';
     bodyBgColor = '#ffffff';
   } else if (globalLayout === 12) { // Hearts
-    paperStyleCss = 'background-color: #ffffff; border: 10pt solid #fee2e2; padding: 10pt;';
+    paperStyleCss = 'background-color: #ffffff; border: 10pt solid #fee2e2; padding: 10pt; border-style: dashed;';
     bodyBgColor = '#ffffff';
   } else if (globalLayout === 13) { // Bubbles
     paperStyleCss = 'background-color: #f0f9ff; border: 10pt solid #e0f2fe; padding: 10pt;';
@@ -357,16 +451,88 @@ export const exportToWord = async (
     bodyBgColor = '#f8fafc';
   }
 
-  // Apply Base Layout (baseLayout) styles
-  let baseLayoutCss = '';
-  if (baseLayout === 1) { // Lined
-    // For Word, we simulate lines with a subtle background color if not already set
-    if (bodyBgColor === '#ffffff') bodyBgColor = '#f8fafc';
-    paperStyleCss += ' border-bottom: 0.5pt solid #e2e8f0;';
-  } else if (baseLayout === 2) { // Grid
-    if (bodyBgColor === '#ffffff') bodyBgColor = '#f1f5f9';
-  } else if (baseLayout === 3) { // Ruler
-    // Ruler is handled by .ruler-table class in the HTML content
+  const shadingStyle = `mso-shading: windowtext 0% ${bodyBgColor};`;
+
+  // 4. Structural Layout Enhancements (Borders for Paper Styles)
+  let containerStyle = `padding: 10pt; min-height: 10in; ${shadingStyle} ${frameStyle} ${paperStyleCss}`;
+  
+  // Ensure all borders in paperStyleCss have mso-border-alt equivalents
+  if (paperStyleCss.includes('border-left')) {
+    const match = paperStyleCss.match(/border-left:\s*([^;]+)/);
+    if (match) containerStyle += ` mso-border-left-alt: ${match[1]};`;
+  }
+  if (paperStyleCss.includes('border-right')) {
+    const match = paperStyleCss.match(/border-right:\s*([^;]+)/);
+    if (match) containerStyle += ` mso-border-right-alt: ${match[1]};`;
+  }
+  if (paperStyleCss.includes('border-top')) {
+    const match = paperStyleCss.match(/border-top:\s*([^;]+)/);
+    if (match) containerStyle += ` mso-border-top-alt: ${match[1]};`;
+  }
+  if (paperStyleCss.includes('border-bottom')) {
+    const match = paperStyleCss.match(/border-bottom:\s*([^;]+)/);
+    if (match) containerStyle += ` mso-border-bottom-alt: ${match[1]};`;
+  }
+  if (paperStyleCss.includes('border:') && !paperStyleCss.includes('border-')) {
+    const match = paperStyleCss.match(/border:\s*([^;]+)/);
+    if (match) containerStyle += ` mso-border-alt: ${match[1]};`;
+  }
+
+  // 5. Lined Paper Structural Fix (Apply border-bottom to paragraphs)
+  // This is NATIVE Word borders, not visuals.
+  if (baseLayout === 1 || baseLayout === 3 || baseLayout === 4 || baseLayout >= 5) {
+    const pElements = tempDiv.querySelectorAll('p, div.item, li, td, span, h1, h2, h3');
+    pElements.forEach(p => {
+      const el = p as HTMLElement;
+      // Don't apply to header rows or empty spans
+      if (el.closest('.header-row') || el.classList.contains('header-row')) return;
+      if (el.tagName === 'SPAN' && !el.textContent?.trim()) return;
+      
+      el.style.borderBottom = '0.5pt solid #cbd5e1';
+      el.style.paddingBottom = '4pt';
+      el.style.marginBottom = '8pt';
+      el.style.setProperty('mso-border-bottom-alt', '0.5pt solid #cbd5e1');
+    });
+    
+    // Also apply to headerDiv elements
+    const headerElements = headerDiv.querySelectorAll('p, h1, h2, h3, div');
+    headerElements.forEach(el => {
+      const element = el as HTMLElement;
+      element.style.borderBottom = '0.5pt solid #cbd5e1';
+      element.style.paddingBottom = '4pt';
+      element.style.marginBottom = '8pt';
+      element.style.setProperty('mso-border-bottom-alt', '0.5pt solid #cbd5e1');
+    });
+  }
+
+  // 6. Instruction Ruler Structural Fix
+  if (instructionRulerStyle > 0) {
+    const headerSection = tempDiv.querySelector('div.flex.flex-col.items-center');
+    if (headerSection) {
+      const rulerDiv = document.createElement('div');
+      rulerDiv.style.width = '100%';
+      rulerDiv.style.marginTop = '15pt';
+      rulerDiv.style.marginBottom = '15pt';
+      
+      if (instructionRulerStyle === 1) {
+        rulerDiv.style.borderBottom = '1.5pt dashed #000000';
+        rulerDiv.style.setProperty('mso-border-bottom-alt', '1.5pt dashed #000000');
+      } else if (instructionRulerStyle === 2) {
+        rulerDiv.style.borderBottom = '3pt double #000000';
+        rulerDiv.style.setProperty('mso-border-bottom-alt', '3pt double #000000');
+      } else if (instructionRulerStyle === 3) {
+        rulerDiv.style.borderBottom = '4pt solid #334155';
+        rulerDiv.style.setProperty('mso-border-bottom-alt', '4pt solid #334155');
+      } else if (instructionRulerStyle === 4) {
+        rulerDiv.style.borderBottom = '2pt solid #000000';
+        rulerDiv.style.setProperty('mso-border-bottom-alt', '2pt solid #000000');
+        const subRuler = document.createElement('div');
+        subRuler.style.borderBottom = '0.5pt solid #000000';
+        subRuler.style.marginTop = '2pt';
+        rulerDiv.appendChild(subRuler);
+      }
+      headerSection.appendChild(rulerDiv);
+    }
   }
 
   const content = `
@@ -380,19 +546,9 @@ export const exportToWord = async (
           mso-header-margin: 0.5in; 
           mso-footer-margin: 0.5in; 
           mso-paper-source: 0;
-          mso-page-margin-top: ${mTop};
-          mso-page-margin-bottom: ${mBottom};
-          mso-page-margin-left: ${mLeft};
-          mso-page-margin-right: ${mRight};
-          mso-background-source: auto;
-          mso-page-background-color: ${bodyBgColor};
         }
         div.Section1 { 
           page: Section1; 
-          ${frameStyle} 
-          ${paperStyleCss} 
-          ${baseLayoutCss} 
-          mso-shading: windowtext 0% ${bodyBgColor};
         }
         body { 
           font-family: "${fontFamily}", serif; 
@@ -408,20 +564,13 @@ export const exportToWord = async (
           padding: 0pt; 
           line-height: ${exactLineHeight}; 
           mso-line-height-rule: exactly;
-          mso-ascii-font-family: "${fontFamily}";
-          mso-hansi-font-family: "${fontFamily}";
-          mso-bidi-font-family: "${fontFamily}";
-          mso-margin-top-alt: 0pt;
-          mso-margin-bottom-alt: 0pt;
         }
-        img { border: none; display: block; }
         table { 
           mso-table-lspace:0pt; 
           mso-table-rspace:0pt; 
           border-collapse: collapse; 
           margin: 0; 
           width: 100%;
-          mso-line-height-rule: exactly;
         }
         td { 
           font-family: "${fontFamily}", serif; 
@@ -430,17 +579,22 @@ export const exportToWord = async (
           mso-line-height-rule: exactly; 
           padding: 0;
           vertical-align: top;
-          mso-margin-top-alt: 0pt;
-          mso-margin-bottom-alt: 0pt;
         }
-        .header-row { background-color: #334155; color: white; text-align: center; font-weight: bold; padding: 10px; }
+        .header-row { background-color: #334155; color: white; text-align: center; font-weight: bold; padding: 10px; mso-shading: windowtext 0% #334155; }
       </style>
     </head>
     <body>
       <div class="Section1">
-        ${headerDiv.innerHTML}
-        ${metadataHtml}
-        ${finalHtml}
+        <!-- Master Table for Paper Style Border -->
+        <table border="0" cellspacing="0" cellpadding="0" width="100%" style="width: 100%; border-collapse: collapse; ${containerStyle}">
+          <tr>
+            <td style="padding: 10pt; ${shadingStyle}">
+              ${headerDiv.innerHTML}
+              ${metadataHtml}
+              ${finalHtml}
+            </td>
+          </tr>
+        </table>
       </div>
     </body>
     </html>`;
