@@ -34,14 +34,16 @@ interface SidebarProps {
   onPaperDesignChange: (val: number) => void;
   onDesignPaperClick: () => void;
   onPaperStyleClick: () => void;
+  onInstructionDesignClick: () => void;
   onHeaderFooterDesignClick: () => void;
   onSubjectsClick: () => void;
   mcqLayout: 'single' | 'double' | 'quad';
   onMcqLayoutChange: (val: 'single' | 'double' | 'quad') => void;
   mcqSpacing: 'none' | 'one';
   onMcqSpacingChange: (val: 'none' | 'one') => void;
-  isRoundMcq: boolean;
-  onRoundMcqChange: (val: boolean) => void;
+  mcqStyle: number;
+  onMcqStyleChange: (val: number) => void;
+  onSetDefaultMcqStyle?: () => void;
   instructionCase: 'uppercase' | 'lowercase' | 'random';
   onInstructionCaseChange: (val: 'uppercase' | 'lowercase' | 'random') => void;
   width?: number;
@@ -67,11 +69,13 @@ const Sidebar: React.FC<SidebarProps> = ({
   paperDesign, onPaperDesignChange,
   onDesignPaperClick,
   onPaperStyleClick,
+  onInstructionDesignClick,
   onHeaderFooterDesignClick,
   onSubjectsClick,
   mcqLayout, onMcqLayoutChange,
   mcqSpacing, onMcqSpacingChange,
-  isRoundMcq, onRoundMcqChange,
+  mcqStyle, onMcqStyleChange,
+  onSetDefaultMcqStyle,
   instructionCase, onInstructionCaseChange,
   width = 280,
   onWidthChange,
@@ -140,8 +144,8 @@ const Sidebar: React.FC<SidebarProps> = ({
                 <i className="fa-solid fa-sparkles text-white text-lg"></i>
               </div>
               <div>
-                <h1 className="text-base font-bold text-slate-800 leading-none">DPSS Virtues</h1>
-                <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Version 2.0</span>
+                <h1 className="text-sm font-bold text-slate-800 leading-none">DPSS Virtues</h1>
+                <span className="text-[9px] font-bold text-slate-400 uppercase tracking-wider">Version 2.0</span>
               </div>
             </div>
             <div className="flex items-center gap-2">
@@ -167,7 +171,7 @@ const Sidebar: React.FC<SidebarProps> = ({
             <button
               key={mod}
               onClick={() => onModuleChange(mod.charAt(0) + mod.slice(1).toLowerCase())}
-              className={`flex-1 py-2 rounded-lg text-[9px] font-bold transition-all ${
+              className={`flex-1 py-2 rounded-lg text-[8px] font-bold transition-all ${
                 activeModule.toUpperCase() === mod 
                   ? 'bg-white text-orange-600 shadow-sm' 
                   : 'text-slate-500 hover:text-slate-700'
@@ -180,7 +184,7 @@ const Sidebar: React.FC<SidebarProps> = ({
 
         {activeModule.toUpperCase() === 'READING' && (
           <div className="flex items-center justify-between bg-blue-50 p-3 rounded-xl border border-blue-100">
-            <span className="text-[9px] font-black text-blue-600 uppercase tracking-widest">One Reading Text for All Parts</span>
+            <span className="text-[8px] font-black text-blue-600 uppercase tracking-widest">One Reading Text for All Parts</span>
             <button 
               onClick={() => onSingleReadingTextChange(!isSingleReadingText)}
               className={`w-8 h-4 rounded-full transition-all relative ${isSingleReadingText ? 'bg-blue-600' : 'bg-slate-300'}`}
@@ -193,37 +197,76 @@ const Sidebar: React.FC<SidebarProps> = ({
         <div className="flex flex-col gap-2 bg-purple-50 p-3 rounded-xl border border-purple-100">
           <button 
             onClick={onDesignPaperClick}
-            className="w-full flex items-center justify-between bg-white p-3 rounded-lg border border-purple-200 hover:bg-purple-100 hover:border-purple-300 transition-colors group shadow-sm"
+            className="w-full flex items-center justify-between bg-white p-2 rounded-lg border border-purple-200 hover:bg-purple-100 hover:border-purple-300 transition-colors group shadow-sm"
           >
-            <span className="text-[10px] font-black text-purple-600 uppercase tracking-widest">Design Paper Test</span>
-            <i className="fa-solid fa-chevron-right text-purple-400 group-hover:text-purple-600 transition-colors"></i>
+            <span className="text-[8px] font-black text-purple-600 uppercase tracking-widest">Design Paper Test</span>
+            <i className="fa-solid fa-chevron-right text-purple-400 group-hover:text-purple-600 transition-colors text-[7px]"></i>
+          </button>
+          <button 
+            onClick={onInstructionDesignClick}
+            className="w-full flex items-center justify-between bg-white p-2 rounded-lg border border-rose-200 hover:bg-rose-100 hover:border-rose-300 transition-colors group shadow-sm"
+          >
+            <span className="text-[8px] font-black text-rose-600 uppercase tracking-widest">Instruction Design</span>
+            <i className="fa-solid fa-chevron-right text-rose-400 group-hover:text-rose-600 transition-colors text-[7px]"></i>
           </button>
           <button 
             onClick={onPaperStyleClick}
-            className="w-full flex items-center justify-between bg-white p-3 rounded-lg border border-emerald-200 hover:bg-emerald-100 hover:border-emerald-300 transition-colors group shadow-sm"
+            className="w-full flex items-center justify-between bg-white p-2 rounded-lg border border-emerald-200 hover:bg-emerald-100 hover:border-emerald-300 transition-colors group shadow-sm"
           >
-            <span className="text-[10px] font-black text-emerald-600 uppercase tracking-widest">Paper Style</span>
-            <i className="fa-solid fa-chevron-right text-emerald-400 group-hover:text-emerald-600 transition-colors"></i>
+            <span className="text-[8px] font-black text-emerald-600 uppercase tracking-widest">Paper Style</span>
+            <i className="fa-solid fa-chevron-right text-emerald-400 group-hover:text-emerald-600 transition-colors text-[7px]"></i>
           </button>
+
+          <div className="bg-white p-2 rounded-lg border border-orange-200 space-y-2">
+            <div className="flex items-center justify-between">
+              <span className="text-[8px] font-black text-orange-600 uppercase tracking-widest">MCQ Design</span>
+              <button 
+                onClick={onSetDefaultMcqStyle}
+                className="text-[7px] font-bold text-slate-400 hover:text-orange-600 uppercase tracking-tighter border border-slate-100 px-1.5 py-0.5 rounded bg-slate-50"
+              >
+                Set Default
+              </button>
+            </div>
+            <div className="grid grid-cols-3 gap-1">
+              {[
+                { id: 0, label: 'None', icon: 'fa-font' },
+                { id: 1, label: 'Round', icon: 'fa-circle-dot' },
+                { id: 2, label: 'Box', icon: 'fa-square' },
+                { id: 3, label: 'Paren', icon: 'fa-brackets-round' },
+                { id: 4, label: 'Under', icon: 'fa-underline' },
+                { id: 5, label: 'Bold', icon: 'fa-bold' }
+              ].map((s) => (
+                <button
+                  key={s.id}
+                  onClick={() => onMcqStyleChange(s.id)}
+                  className={`h-7 rounded-md border flex flex-col items-center justify-center gap-0 transition-all ${mcqStyle === s.id ? 'bg-orange-600 border-orange-600 text-white shadow-sm' : 'bg-white border-orange-100 text-orange-400 hover:border-orange-300'}`}
+                >
+                  <i className={`fa-solid ${s.icon} text-[8px]`}></i>
+                  <span className="text-[7px] font-bold">{s.label}</span>
+                </button>
+              ))}
+            </div>
+          </div>
+
           <button 
             onClick={onSubjectsClick}
-            className="w-full flex items-center justify-between bg-white p-3 rounded-lg border border-amber-200 hover:bg-amber-100 hover:border-amber-300 transition-colors group shadow-sm"
+            className="w-full flex items-center justify-between bg-white p-2 rounded-lg border border-amber-200 hover:bg-amber-100 hover:border-amber-300 transition-colors group shadow-sm"
           >
-            <span className="text-[10px] font-black text-amber-600 uppercase tracking-widest">Subjects</span>
-            <i className="fa-solid fa-chevron-right text-amber-400 group-hover:text-amber-600 transition-colors"></i>
+            <span className="text-[8px] font-black text-amber-600 uppercase tracking-widest">Subjects</span>
+            <i className="fa-solid fa-chevron-right text-amber-400 group-hover:text-amber-600 transition-colors text-[7px]"></i>
           </button>
           <button 
             onClick={onHeaderFooterDesignClick}
-            className="w-full flex items-center justify-between bg-white p-3 rounded-lg border border-blue-200 hover:bg-blue-100 hover:border-blue-300 transition-colors group shadow-sm"
+            className="w-full flex items-center justify-between bg-white p-2 rounded-lg border border-blue-200 hover:bg-blue-100 hover:border-blue-300 transition-colors group shadow-sm"
           >
-            <span className="text-[10px] font-black text-blue-600 uppercase tracking-widest">Header & Footer Styles</span>
-            <i className="fa-solid fa-chevron-right text-blue-400 group-hover:text-blue-600 transition-colors"></i>
+            <span className="text-[8px] font-black text-blue-600 uppercase tracking-widest">Header & Footer Styles</span>
+            <i className="fa-solid fa-chevron-right text-blue-400 group-hover:text-blue-600 transition-colors text-[7px]"></i>
           </button>
         </div>
 
         <div className="flex flex-col gap-2 bg-indigo-50 p-3 rounded-xl border border-indigo-100">
           <div className="flex items-center justify-between">
-            <span className="text-[9px] font-black text-indigo-600 uppercase tracking-widest">Instruction</span>
+            <span className="text-[8px] font-black text-indigo-600 uppercase tracking-widest">Instruction</span>
             <div className="flex gap-1">
               {[
                 { id: 'uppercase', label: 'ABC' },
@@ -233,7 +276,7 @@ const Sidebar: React.FC<SidebarProps> = ({
                 <button
                   key={c.id}
                   onClick={() => onInstructionCaseChange(c.id as any)}
-                  className={`h-5 px-2 rounded-full text-[8px] font-black transition-all ${instructionCase === c.id ? 'bg-indigo-600 text-white' : 'bg-white border border-indigo-200 text-indigo-400'}`}
+                  className={`h-5 px-2 rounded-full text-[7px] font-black transition-all ${instructionCase === c.id ? 'bg-indigo-600 text-white' : 'bg-white border border-indigo-200 text-indigo-400'}`}
                 >
                   {c.label}
                 </button>
@@ -244,19 +287,13 @@ const Sidebar: React.FC<SidebarProps> = ({
 
         <div className="flex flex-col gap-2 bg-orange-50 p-3 rounded-xl border border-orange-100">
           <div className="flex items-center justify-between">
-            <span className="text-[9px] font-black text-orange-600 uppercase tracking-widest">MCQ Formatting</span>
+            <span className="text-[8px] font-black text-orange-600 uppercase tracking-widest">MCQ Layout</span>
             <div className="flex gap-1">
               <button 
                 onClick={() => onMcqSpacingChange(mcqSpacing === 'none' ? 'one' : 'none')}
-                className={`h-5 px-2 rounded-full text-[8px] font-black uppercase transition-all flex items-center gap-1 ${mcqSpacing === 'one' ? 'bg-orange-600 text-white' : 'bg-white border border-orange-200 text-orange-400'}`}
+                className={`h-5 px-2 rounded-full text-[7px] font-black uppercase transition-all flex items-center gap-1 ${mcqSpacing === 'one' ? 'bg-orange-600 text-white' : 'bg-white border border-orange-200 text-orange-400'}`}
               >
                 <i className="fa-solid fa-arrows-up-down"></i> {mcqSpacing === 'none' ? 'No Space' : 'One Space'}
-              </button>
-              <button 
-                onClick={() => onRoundMcqChange(!isRoundMcq)}
-                className={`h-5 px-2 rounded-full text-[8px] font-black uppercase transition-all flex items-center gap-1 ${isRoundMcq ? 'bg-orange-600 text-white' : 'bg-white border border-orange-200 text-orange-400'}`}
-              >
-                <i className="fa-solid fa-circle-dot"></i> Styled
               </button>
             </div>
           </div>
@@ -280,12 +317,12 @@ const Sidebar: React.FC<SidebarProps> = ({
 
         {/* History Section */}
         <div className="flex-1 overflow-hidden flex flex-col">
-          <label className="text-[10px] font-black text-slate-400 uppercase tracking-[0.15em] mb-4 block px-1">Neural History</label>
+          <label className="text-[9px] font-black text-slate-400 uppercase tracking-[0.15em] mb-4 block px-1">Neural History</label>
           <div className="flex-1 overflow-y-auto no-scrollbar space-y-3 pr-1">
             {history.length === 0 && (
               <div className="p-8 border-2 border-dashed border-slate-100 rounded-3xl text-center space-y-2">
                 <i className="fa-solid fa-clock-rotate-left text-slate-200 text-xl"></i>
-                <p className="text-[9px] font-bold text-slate-300 uppercase">No History Yet</p>
+                <p className="text-[8px] font-bold text-slate-300 uppercase">No History Yet</p>
               </div>
             )}
             {history.map((item) => (
@@ -302,12 +339,12 @@ const Sidebar: React.FC<SidebarProps> = ({
                       onChange={e => setTempTitle(e.target.value)}
                       onBlur={() => submitRename(item.id)}
                       onKeyDown={e => e.key === 'Enter' && submitRename(item.id)}
-                      className="text-[10px] font-black text-slate-900 uppercase bg-slate-50 border-none outline-none w-full"
+                      className="text-[9px] font-black text-slate-900 uppercase bg-slate-50 border-none outline-none w-full"
                     />
                   ) : (
-                    <span className="text-[10px] font-black text-slate-900 uppercase truncate pr-6">{item.title}</span>
+                    <span className="text-[9px] font-black text-slate-900 uppercase truncate pr-6">{item.title}</span>
                   )}
-                  <span className="text-[8px] font-bold text-slate-400 uppercase">{new Date(item.timestamp).toLocaleDateString()}</span>
+                  <span className="text-[7px] font-bold text-slate-400 uppercase">{new Date(item.timestamp).toLocaleDateString()}</span>
                 </div>
                 <div className="absolute right-2 top-1/2 -translate-y-1/2 flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
                   <button onClick={(e) => startRename(e, item)} className="h-6 w-6 bg-slate-50 text-slate-400 rounded-lg hover:text-orange-600"><i className="fa-solid fa-pen text-[8px]"></i></button>
@@ -322,15 +359,15 @@ const Sidebar: React.FC<SidebarProps> = ({
       <div className="mt-auto p-6 border-t border-slate-100 space-y-4">
         <button 
           onClick={onToggleSettings}
-          className="w-full py-3 bg-slate-50 hover:bg-slate-100 text-slate-600 rounded-xl text-[10px] font-bold uppercase tracking-widest flex items-center justify-center gap-2 transition-all"
+          className="w-full py-3 bg-slate-50 hover:bg-slate-100 text-slate-600 rounded-xl text-[9px] font-bold uppercase tracking-widest flex items-center justify-center gap-2 transition-all"
         >
           <i className="fa-solid fa-gear"></i> Workspace Settings
         </button>
         <div className="flex items-center gap-2 text-slate-400">
           <div className="h-5 w-5 rounded-full border border-emerald-500 flex items-center justify-center">
-            <i className="fa-solid fa-check text-[8px] text-emerald-500"></i>
+            <i className="fa-solid fa-check text-[7px] text-emerald-500"></i>
           </div>
-          <span className="text-[10px] font-bold uppercase tracking-wider">AI Engine Ready</span>
+          <span className="text-[9px] font-bold uppercase tracking-wider">AI Engine Ready</span>
         </div>
       </div>
     </div>

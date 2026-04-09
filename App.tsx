@@ -96,7 +96,7 @@ function App() {
 
   const [authLoading, setAuthLoading] = useState(false);
 
-  const [viewMode, setViewMode] = useState<'generator' | 'preview' | 'book_creation' | 'ielts_master' | 'dpss_studio' | 'grammar_iframe' | 'khmer_program' | 'design_paper' | 'header_footer_design' | 'paper_style_design'>('generator');
+  const [viewMode, setViewMode] = useState<'generator' | 'preview' | 'book_creation' | 'ielts_master' | 'dpss_studio' | 'grammar_iframe' | 'khmer_program' | 'design_paper' | 'header_footer_design' | 'paper_style_design' | 'instruction_design'>('generator');
   const [isSidebarOpen, setIsSidebarOpen] = useState(true);
   const [sidebarWidth, setSidebarWidth] = useState(280);
   const [sidebarSide, setSidebarSide] = useState<'left' | 'right'>('left');
@@ -132,10 +132,14 @@ function App() {
   const [baseLayout, setBaseLayout] = useState<number>(0); // 0: Clean, 1: Lined, 2: Grid, 3: Vertical Middle, 4: Rulers Left, 5-8: S1-S4
   const [instructionRulerStyle, setInstructionRulerStyle] = useState<number>(0); // 0: None, 1-4: S1-S4
   const [paperDesign, setPaperDesign] = useState<number>(0); // 0-10 (11 designs)
+  const [instructionHeaderStyle, setInstructionHeaderStyle] = useState<number>(0); // 0: Default, 1-10: Styles
   const [architectTab, setArchitectTab] = useState<'Grammar' | 'Vocabulary' | 'Reading'>('Grammar');
   const [mcqLayout, setMcqLayout] = useState<'single' | 'double' | 'quad'>('single'); // A,B,C,D in 1, 2, or 4 lines
   const [mcqSpacing, setMcqSpacing] = useState<'none' | 'one'>('none'); // No space or one enter space
-  const [isRoundMcq, setIsRoundMcq] = useState(false);
+  const [mcqStyle, setMcqStyle] = useState<number>(() => {
+    const saved = localStorage.getItem('dp_default_mcq_style');
+    return saved ? parseInt(saved) : 0;
+  });
   const [paperStyles, setPaperStyles] = useState({
     mcq: 0,
     tf: 0,
@@ -821,6 +825,10 @@ function App() {
       ? `[STRATEGY]: GENERAL-MIXED (Horizontal Logic). The context is {{TOPIC}}, but distractors should test high-frequency "general" errors (Gerunds, Prepositions, Agreement).`
       : `[STRATEGY]: TOPIC-FOCUSED (Vertical Logic). Every item and distractor must focus strictly on the rules of {{TOPIC}}.`;
 
+    const rulerInstruction = instructionRulerStyle > 0 
+      ? `\n[RULER STYLE - CRITICAL]: After EVERY instruction header (e.g., PART A: ...), you MUST insert a <div class="instruction-ruler-${instructionRulerStyle}"></div>. This is a visual separator.`
+      : "";
+
     const headerDesigns = [
       `<div style="border-bottom: 2pt solid black; padding-bottom: 10pt; margin-bottom: 20pt;">
         <div style="display: flex; justify-content: space-between; font-weight: bold; font-size: 10pt; margin-bottom: 5pt;">
@@ -945,7 +953,7 @@ function App() {
     ${mcqLayout === 'single' ? '- ONE LINE: Create a <table> with 1 row and 4 columns. Row 1: [A, B, C, D].' : 
       mcqLayout === 'double' ? '- TWO LINES: Create a <table> with 2 rows and 2 columns. Row 1: [A, B], Row 2: [C, D]. (This ensures A and C are vertically aligned in the first column).' : 
       '- FOUR LINES: Create a <table> with 4 rows and 1 column. Row 1: [A], Row 2: [B], Row 3: [C], Row 4: [D].'}
-    ${isRoundMcq ? '- [STYLE]: Wrap the option letters (A, B, C, D) in <b> tags (e.g., <td><b>A</b> Option text</td>). These will be styled as circular badges. Use a very thin, subtle border (0.5pt) for the circle so it is not too heavy, and ensure it is perfectly round.' : '- [STYLE]: Use plain letters (A, B, C, D) followed by a period.'}
+    ${mcqStyle > 0 ? '- [STYLE]: Wrap the option letters (A, B, C, D) in <b> tags (e.g., <td><b>A</b> Option text</td>). MANDATORY: DO NOT use brackets like (A) or [A]. Just the plain letter inside the <b> tag. These will be styled as professional badges.' : '- [STYLE]: Use plain letters (A, B, C, D) followed by a period.'}
     
     [MCQ DESIGN VARIETY]:
     - Randomly choose between these styles for the question line:
@@ -957,7 +965,7 @@ function App() {
     - At the very end of the document, add a section wrapped in <div class="answer-key-section">.
     - Inside, add a <h2> titled "Teacher Answer Key".
     - Format the answers compactly: "Part A: 1:A, 2:C, 3:D..." 
-    - If "Styled Badges" is enabled, wrap the letters in <b> tags here too (e.g., "1:<b>A</b>").
+    - If "MCQ Design" is active, wrap the letters in <b> tags here too (e.g., "1:<b>A</b>").
     - Ensure the answer key is clearly separated from the test content.
     
     [HEADER DESIGN]:
@@ -992,7 +1000,19 @@ function App() {
 
     const alignments = ['left', 'center', 'right'];
     const randomAlignment = alignments[Math.floor(Math.random() * alignments.length)];
-    const headerStyle = `class="header-row", text-align: ${randomAlignment}, font-weight: bold, padding: 10px`;
+    
+    let headerStyle = `class="header-row", text-align: ${randomAlignment}, font-weight: bold, padding: 10px`;
+    if (instructionHeaderStyle === 6) {
+      headerStyle += `, border-bottom: 4pt double #334155`;
+    } else if (instructionHeaderStyle === 11) {
+      headerStyle += `, background: linear-gradient(90deg, #1e293b, #475569), color: white`;
+    } else if (instructionHeaderStyle === 12) {
+      headerStyle += `, border: 2pt solid #10b981, color: #065f46, background-color: #ecfdf5`;
+    } else if (instructionHeaderStyle === 13) {
+      headerStyle += `, border: 3pt solid black, background-color: #facc15, color: black`;
+    } else if (instructionHeaderStyle === 14) {
+      headerStyle = `class="header-row", MANDATORY: For each PART (A, B, C, etc.), you MUST use a DIFFERENT visual style for the header row. Mix backgrounds, borders, and colors.`;
+    }
 
     const componentLogic = selectedTemps.map((t, idx) => {
       const overrideCol = columnOverrides[t.id] !== undefined ? columnOverrides[t.id] : (t.columnCount !== undefined ? t.columnCount : 0);
@@ -1025,13 +1045,13 @@ function App() {
       let formatInstruction = '';
 
       // Use overrideCol if it's > 0, otherwise use baseLayout defaults
-      const effectiveCols = overrideCol > 0 ? overrideCol : (baseLayout === 2 ? 2 : 1);
-      const isForcedList = overrideCol === 0;
+      const effectiveCols = overrideCol > 0 ? overrideCol : ([2, 3, 4].includes(baseLayout) ? 2 : 1);
+      const isForcedList = overrideCol === 0 && ![2, 3, 4].includes(baseLayout);
 
       if (isForcedList) {
         formatInstruction = `(FORMAT: Standard numbered list. ${isPartBackgroundEnabled ? 'MANDATORY: Wrap the entire part in a <div class="..."> with a unique background style class from the PART BACKGROUND PROTOCOL.' : ''} Every numbered item (1., 2., 3., etc.) MUST start on a NEW LINE using an HTML <p> or <br> tag. DO NOT bunch them together in a single paragraph. DO NOT use tables or columns.)`;
-      } else if (baseLayout === 0) {
-        // Option 1 (Clean): 1 column, 2 rows (Header + All items in one cell)
+      } else if (baseLayout === 0 || (baseLayout === 3 && effectiveCols === 1)) {
+        // Option 1 (Clean) or Option 4 with 1 column override
         if (effectiveCols > 1) {
           formatInstruction = `(MANDATORY FORMAT: Use a real HTML <table> with ${effectiveCols} columns. 
             ${isPartBackgroundEnabled ? 'MANDATORY: Apply a unique background style class from the PART BACKGROUND PROTOCOL to this <table> tag.' : ''}
@@ -1082,7 +1102,7 @@ function App() {
             - MANDATORY: The <table> MUST have a class="ruler-table". 
             - The middle border between columns MUST be a solid 1.5pt line (the "ruler").
             - DO NOT use outer borders. ONLY the middle vertical border is allowed.
-            - This is the "Middle Ruler" layout where content is split into two halves.)`;
+            - [CRITICAL]: If you do not use a 2-column table for EVERY part, the middle ruler line will be broken. This is the "Middle Ruler" layout where content is split into two halves.)`;
       } else if (baseLayout === 4) {
         // Option 5 (Rulers Left): 2 columns, 1 row (Header) + N rows (Items)
         formatInstruction = `(MANDATORY FORMAT: Use a real HTML <table> with 2 columns. 
@@ -1107,7 +1127,7 @@ function App() {
       const rawHeader = t.professionalLabel || t.label;
       const formattedHeader = instructionCase === 'uppercase' ? rawHeader.toUpperCase() : instructionCase === 'lowercase' ? toTitleCase(rawHeader) : rawHeader;
         
-      return `PART ${String.fromCharCode(65 + idx)} [MANDATORY INSTRUCTION HEADER: ${formattedHeader}]: ${t.prompt.replace(/{{BLANK}}/g, selectedBlankStyle)} (GENERATE EXACTLY ${overrideItems} ITEMS) ${blueprintStr} ${formatInstruction}`;
+      return `PART ${String.fromCharCode(65 + idx)} [MANDATORY INSTRUCTION HEADER - YOU MUST USE THIS EXACT TEXT: "${formattedHeader}"]: ${t.prompt.replace(/{{BLANK}}/g, selectedBlankStyle)} (GENERATE EXACTLY ${overrideItems} ITEMS) ${blueprintStr} ${formatInstruction}`;
     }).join('\n\n');
 
     const moduleSafetyGuard = activeModule === 'Grammar'
@@ -1130,17 +1150,17 @@ function App() {
       : `1. GENERATE A UNIQUE, SEPARATE PASSAGE (~${readingPassageLength}) FOR EVERY SINGLE PART of the test. Each part MUST have its own distinct text.`;
 
     const mandatorySequence = activeModule === 'Grammar' 
-      ? `1. GENERATE ALL REQUESTED PARTS. ADAPT TITLES TO MATCH "${topic}".\n2. ENFORCE "NO FREE VERB" & "SITUATIONAL EVIDENCE" rules for all grammar stems. MANDATORY: Every question MUST have a full context sentence. DO NOT generate just blanks.\n3. [SOURCE PRIORITY]: If source material is provided, strictly use ALL grammar rules and examples from it. If there are 6 rules, use all 6.`
+      ? `1. GENERATE ALL REQUESTED PARTS. ADAPT TITLES TO MATCH "${topic}".\n2. ENFORCE "NO FREE VERB" & "SITUATIONAL EVIDENCE" rules for all grammar stems. MANDATORY: Every question MUST have a full context sentence. DO NOT generate just blanks.\n3. [SOURCE PRIORITY]: If source material is provided, strictly use ALL grammar rules and examples from it. If there are 6 rules, use all 6.\n4. [CAPITALIZATION]: ${instructionCase === 'uppercase' ? 'ALL instructions and headers MUST be in ALL CAPS.' : 'Instructions and headers MUST follow Title Case.'}`
       : activeModule === 'Reading'
-      ? `${readingPassageInstruction}\n2. APPLY [NATURAL PARAPHRASE] logic to all questions (No keyword matching).\n3. ENFORCE [READING LOGIC FIREWALL] (Strictly forbidden from testing grammar).\n4. ENSURE all distractors are grammatically identical to the correct answer.`
-      : `1. GENERATE ALL REQUESTED PARTS. ADAPT TITLES TO MATCH "${topic}".\n2. ENFORCE [VOCABULARY FIREWALL] (No grammar clues).`;
+      ? `${readingPassageInstruction}\n2. APPLY [NATURAL PARAPHRASE] logic to all questions (No keyword matching).\n3. ENFORCE [READING LOGIC FIREWALL] (Strictly forbidden from testing grammar).\n4. ENSURE all distractors are grammatically identical to the correct answer.\n5. [CAPITALIZATION]: ${instructionCase === 'uppercase' ? 'ALL instructions and headers MUST be in ALL CAPS.' : 'Instructions and headers MUST follow Title Case.'}`
+      : `1. GENERATE ALL REQUESTED PARTS. ADAPT TITLES TO MATCH "${topic}".\n2. ENFORCE [VOCABULARY FIREWALL] (No grammar clues).\n3. [CAPITALIZATION]: ${instructionCase === 'uppercase' ? 'ALL instructions and headers MUST be in ALL CAPS.' : 'Instructions and headers MUST follow Title Case.'}`;
 
     const paperStylesInstruction = `
 [PAPER STYLE ARCHITECT]:
 - MCQ Style: ${paperStyles.mcq === 0 ? "Standard A, B, C, D with period." : 
                 paperStyles.mcq === 1 ? "Underscore prefix before number (e.g., ___ 1. Question)." :
                 paperStyles.mcq === 2 ? "Boxed letters [A] [B] [C] [D]." :
-                paperStyles.mcq === 3 ? "Circled letters (A) (B) (C) (D). Use a very thin, subtle border (0.5pt) for the circle so it is not too heavy, and ensure it is perfectly round." : 
+                paperStyles.mcq === 3 ? "Circled letters (A) (B) (C) (D). DO NOT use CSS borders or backgrounds for the circles; just use plain text brackets around the letter." : 
                 "Custom layout style " + (paperStyles.mcq + 1)}
 - MCQ Spacing: ${mcqSpacing === 'none' ? "No extra vertical space between questions." : "Add exactly ONE empty line (Enter) between each question for better spacing."}
 - True/False Style: ${paperStyles.tf === 0 ? "Put ( T / F ) at the VERY END of each statement, right-aligned if possible." : 
@@ -1176,6 +1196,10 @@ function App() {
                            "Custom Reading Passage style " + (paperStyles.readingPassage + 1)}
 `;
 
+    const instructionRulerPrompt = instructionRulerStyle > 0 
+      ? `[INSTRUCTION RULER - MANDATORY]: After EVERY instruction header (e.g., PART A: ...), you MUST insert a <div class="instruction-ruler-${instructionRulerStyle}"></div>. This is a visual separator that MUST be visible.`
+      : '';
+
     const finalLogic = `
 ${moduleSafetyGuard}
 ${subjectInstruction}
@@ -1185,6 +1209,7 @@ ${isFrameEnabled ? BORDER_FRAME_INSTRUCTION : ''}
 ${pageStyleInstruction}
 ${partBackgroundInstruction}
 ${instructionBackgroundInstruction}
+${instructionRulerPrompt}
 ${protocolsPrompt}
 ${strategyInstruction.replace(/{{TOPIC}}/g, topic || "General English")}
 ${mcqLayoutInstruction}
@@ -1346,10 +1371,11 @@ ${componentLogic}
       isFrameEnabled,
       PAPER_DESIGNS[paperDesign],
       paperStyles,
-      isRoundMcq,
+      mcqStyle,
       globalLayout,
       baseLayout,
-      instructionRulerStyle
+      instructionRulerStyle,
+      instructionHeaderStyle
     );
     
     setExportSettings(prev => ({ ...prev, showModal: false }));
@@ -1442,6 +1468,11 @@ ${componentLogic}
     // We don't necessarily want to throw and crash the app, but we want the agent to see it
   };
 
+  const handleSetDefaultMcqStyle = () => {
+    localStorage.setItem('dp_default_mcq_style', mcqStyle.toString());
+    alert('MCQ Style set as default!');
+  };
+
   return (
     <div className="flex h-screen overflow-hidden text-slate-300 relative transition-all duration-500">
       {showOnboarding && <OnboardingTutorial onComplete={handleOnboardingComplete} />}
@@ -1500,14 +1531,16 @@ ${componentLogic}
             onPaperDesignChange={setPaperDesign}
             onDesignPaperClick={() => setViewMode('design_paper')}
             onPaperStyleClick={() => setViewMode('paper_style_design')}
+            onInstructionDesignClick={() => setViewMode('instruction_design')}
             onHeaderFooterDesignClick={() => setViewMode('header_footer_design')}
+            mcqStyle={mcqStyle}
+            onMcqStyleChange={setMcqStyle}
+            onSetDefaultMcqStyle={handleSetDefaultMcqStyle}
             onSubjectsClick={() => setShowSubjectModal(true)}
             mcqLayout={mcqLayout}
             onMcqLayoutChange={setMcqLayout}
             mcqSpacing={mcqSpacing}
             onMcqSpacingChange={setMcqSpacing}
-            isRoundMcq={isRoundMcq}
-            onRoundMcqChange={setIsRoundMcq}
             instructionCase={instructionCase}
             onInstructionCaseChange={setInstructionCase}
             width={sidebarWidth}
@@ -2007,7 +2040,7 @@ ${componentLogic}
               module={activeModule} 
               topic={topic} 
               paperDesign={paperDesign}
-              isRoundMcq={isRoundMcq}
+              mcqStyle={mcqStyle}
               isColorfulBackgroundEnabled={isColorfulBackgroundEnabled}
               isInstructionBackgroundEnabled={isInstructionBackgroundEnabled}
               globalLayout={globalLayout}
@@ -2290,6 +2323,75 @@ ${componentLogic}
                       )}
                     </div>
                   </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </section>
+      )}
+
+      {viewMode === 'instruction_design' && (
+        <section 
+          style={{ 
+            marginLeft: isSidebarOpen && sidebarSide === 'left' ? (windowWidth >= 1024 ? `${sidebarWidth}px` : '0px') : '0px',
+            marginRight: isSidebarOpen && sidebarSide === 'right' ? (windowWidth >= 1024 ? `${sidebarWidth}px` : '0px') : '0px'
+          }}
+          className="flex-1 flex flex-col overflow-hidden animate-in fade-in duration-500 bg-slate-50 transition-all duration-300"
+        >
+          <div className="p-4 lg:p-6 bg-white border-b border-slate-200 flex flex-wrap gap-4 justify-between items-center z-10 no-print shadow-sm">
+            <button onClick={() => setViewMode('generator')} className="border border-slate-200 text-slate-600 px-6 lg:px-8 py-3 rounded-xl text-[11px] font-bold uppercase tracking-widest hover:bg-slate-50 flex items-center gap-4 group transition-all">
+              <i className="fa-solid fa-arrow-left group-hover:-translate-x-1 transition-transform"></i> WORKSPACE
+            </button>
+            <div className="flex-1 text-center">
+              <h2 className="text-slate-800 font-bold uppercase tracking-widest text-[12px]">Instruction Design Workspace</h2>
+            </div>
+            <div className="flex gap-2">
+              <button 
+                onClick={() => setViewMode('generator')}
+                className="px-6 py-3 bg-rose-600 text-white rounded-xl text-[11px] font-bold uppercase tracking-widest hover:bg-rose-700 shadow-sm flex items-center gap-2 transition-all"
+              >
+                <i className="fa-solid fa-check"></i> Save & Apply
+              </button>
+            </div>
+          </div>
+          <div className="flex-1 bg-slate-50 overflow-y-auto p-8 no-scrollbar">
+            <div className="max-w-4xl mx-auto space-y-10">
+              <div className="bg-white rounded-[32px] p-10 border border-slate-100 shadow-sm">
+                <h3 className="text-xl font-black text-slate-900 mb-2 uppercase tracking-tight">Instruction Header Architect</h3>
+                <p className="text-sm text-slate-500 mb-8">Choose a style for the "PART A: ..." instruction headers.</p>
+                
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                  {[
+                    { id: 0, name: 'Classic Dark', style: { backgroundColor: '#334155', color: 'white', padding: '10px', fontWeight: 'bold', textAlign: 'center' } },
+                    { id: 1, name: 'Soft Blue', style: { backgroundColor: '#dbeafe', color: '#1e3a8a', padding: '10px', fontWeight: 'bold', borderLeft: '4pt solid #1e3a8a' } },
+                    { id: 2, name: 'Soft Green', style: { backgroundColor: '#dcfce7', color: '#064e3b', padding: '10px', fontWeight: 'bold', borderLeft: '4pt solid #064e3b' } },
+                    { id: 3, name: 'Soft Rose', style: { backgroundColor: '#fee2e2', color: '#7f1d1d', padding: '10px', fontWeight: 'bold', borderLeft: '4pt solid #7f1d1d' } },
+                    { id: 4, name: 'Minimalist Border', style: { border: '1.5pt solid #334155', color: '#334155', padding: '10px', fontWeight: 'bold', textAlign: 'center' } },
+                    { id: 5, name: 'Underlined Bold', style: { borderBottom: '2.5pt solid #334155', color: '#334155', padding: '10px 0', fontWeight: '900', fontSize: '14pt' } },
+                    { id: 6, name: 'Double Underline', style: { borderBottom: '4pt double #334155', color: '#334155', padding: '10px 0', fontWeight: 'bold' } },
+                    { id: 7, name: 'Modern Slate', style: { backgroundColor: '#f1f5f9', color: '#1e293b', padding: '10px', fontWeight: 'bold', borderRadius: '8px' } },
+                    { id: 8, name: 'Indigo Accent', style: { backgroundColor: '#e0e7ff', color: '#3730a3', padding: '10px', fontWeight: 'bold', borderRight: '4pt solid #3730a3' } },
+                    { id: 9, name: 'Amber Box', style: { backgroundColor: '#fffbeb', color: '#92400e', padding: '10px', fontWeight: 'bold', border: '1pt dashed #92400e' } },
+                    { id: 10, name: 'Clean Transparent', style: { color: '#334155', padding: '10px 0', fontWeight: 'bold', borderBottom: '1pt solid #e2e8f0' } },
+                    { id: 11, name: 'Gradient Night', style: { background: 'linear-gradient(90deg, #1e293b, #475569)', color: 'white', padding: '12px', fontWeight: 'bold', textAlign: 'center', borderRadius: '4px' } },
+                    { id: 12, name: 'Neon Emerald', style: { border: '2pt solid #10b981', color: '#065f46', padding: '10px', fontWeight: '900', textAlign: 'center', backgroundColor: '#ecfdf5' } },
+                    { id: 13, name: 'Brutalist Yellow', style: { border: '3pt solid black', backgroundColor: '#facc15', color: 'black', padding: '10px', fontWeight: '900', textTransform: 'uppercase' } },
+                    { id: 14, name: 'Mix Styles', style: { background: 'repeating-linear-gradient(45deg, #f1f5f9, #f1f5f9 10px, #ffffff 10px, #ffffff 20px)', border: '1pt solid #cbd5e1', color: '#334155', padding: '10px', fontWeight: 'bold', textAlign: 'center' } }
+                  ].map((style) => (
+                    <div 
+                      key={style.id}
+                      onClick={() => setInstructionHeaderStyle(style.id)}
+                      className={`p-6 rounded-2xl border-2 cursor-pointer transition-all ${instructionHeaderStyle === style.id ? 'border-rose-500 bg-rose-50/30 shadow-md' : 'border-slate-200 hover:border-rose-300 bg-white'}`}
+                    >
+                      <div className="flex justify-between items-center mb-4">
+                        <h5 className="font-bold text-slate-700">{style.name}</h5>
+                        {instructionHeaderStyle === style.id && <div className="h-6 w-6 bg-rose-500 text-white rounded-full flex items-center justify-center text-xs"><i className="fa-solid fa-check"></i></div>}
+                      </div>
+                      <div className="bg-white p-4 border border-slate-100 rounded-xl">
+                        <div style={style.style as any}>PART A: CHOOSE THE BEST OPTION</div>
+                      </div>
+                    </div>
+                  ))}
                 </div>
               </div>
             </div>

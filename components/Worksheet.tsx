@@ -14,17 +14,18 @@ interface WorksheetProps {
   theme: Theme;
   brandSettings: BrandSettings;
   paperDesign: number;
-  isRoundMcq: boolean;
+  mcqStyle: number;
   isColorfulBackgroundEnabled: boolean;
   isInstructionBackgroundEnabled: boolean;
   globalLayout: number;
   baseLayout: number;
   instructionRulerStyle?: number;
+  instructionHeaderStyle?: number;
   zoom?: number;
 }
 
 const Worksheet: React.FC<WorksheetProps> = ({
-  content, onContentChange, isGenerating, brandSettings, paperDesign, isRoundMcq, isColorfulBackgroundEnabled, isInstructionBackgroundEnabled, globalLayout, baseLayout, instructionRulerStyle = 0, zoom = 100
+  content, onContentChange, isGenerating, brandSettings, paperDesign, mcqStyle, isColorfulBackgroundEnabled, isInstructionBackgroundEnabled, globalLayout, baseLayout, instructionRulerStyle = 0, instructionHeaderStyle = 0, zoom = 100
 }) => {
   const editorRef = useRef<HTMLDivElement>(null);
 
@@ -58,9 +59,23 @@ const Worksheet: React.FC<WorksheetProps> = ({
     if (editorRef.current && content !== editorRef.current.innerHTML) {
       if (!isGenerating) {
         editorRef.current.innerHTML = content || placeholderHtml;
+        
+        // Clean up MCQ brackets in preview if MCQ Style is active
+        if (mcqStyle > 0) {
+          const boldElements = editorRef.current.querySelectorAll('b, strong');
+          boldElements.forEach(el => {
+            let text = el.textContent?.trim().toUpperCase() || '';
+            if (/^[\(\[ ]*[A-D][\)\]\. ]*$/.test(text)) {
+              const letter = text.match(/[A-D]/)?.[0];
+              if (letter) {
+                el.textContent = letter;
+              }
+            }
+          });
+        }
       }
     }
-  }, [content, isGenerating, placeholderHtml]);
+  }, [content, isGenerating, placeholderHtml, mcqStyle]);
 
   const activeFontFamily = useMemo(() => {
     const font = FONTS.find(f => f.name === brandSettings.activeFont);
@@ -90,9 +105,9 @@ const Worksheet: React.FC<WorksheetProps> = ({
     for (let i = 0; i < count; i++) {
       const top = Math.random() * 90 + 5;
       const left = Math.random() * 90 + 5;
-      const size = Math.random() * 40 + 20;
+      const size = Math.random() * 30 + 15;
       const rotation = Math.random() * 360;
-      const opacity = Math.random() * 0.3 + 0.1;
+      const opacity = Math.random() * 0.4 + 0.2;
 
       elements.push(
         <div
@@ -105,7 +120,7 @@ const Worksheet: React.FC<WorksheetProps> = ({
             color: colors[globalLayout as keyof typeof colors],
             opacity: opacity,
             transform: `rotate(${rotation}deg)`,
-            zIndex: 0
+            zIndex: 5
           }}
         >
           {types[globalLayout as keyof typeof types]}
@@ -147,7 +162,53 @@ const Worksheet: React.FC<WorksheetProps> = ({
           .prose .checkbox-box { border: 1pt solid black; width: 12pt; height: 12pt; display: inline-block; margin-right: 5pt; vertical-align: middle; }
           .prose th, .prose td { border: 1pt solid black !important; padding: 6pt !important; vertical-align: top !important; background: transparent !important; }
           .prose .header-row, .prose tr:first-child td[colspan] { text-align: center !important; font-weight: bold !important; padding: 6px !important; }
-          .prose .header-row:not([style*="background"]), .prose tr:first-child td[colspan]:not([style*="background"]) { background-color: #334155 !important; color: white !important; }
+          
+          /* Instruction Header Styles */
+          ${instructionHeaderStyle === 0 ? `
+            .prose .header-row:not([style*="background"]), .prose tr:first-child td[colspan]:not([style*="background"]) { background-color: #334155 !important; color: white !important; }
+          ` : ''}
+          ${instructionHeaderStyle === 1 ? `
+            .prose .header-row, .prose tr:first-child td[colspan] { background-color: #dbeafe !important; color: #1e3a8a !important; border-left: 6pt solid #1e3a8a !important; text-align: left !important; padding-left: 15pt !important; }
+          ` : ''}
+          ${instructionHeaderStyle === 2 ? `
+            .prose .header-row, .prose tr:first-child td[colspan] { background-color: #dcfce7 !important; color: #064e3b !important; border-left: 6pt solid #064e3b !important; text-align: left !important; padding-left: 15pt !important; }
+          ` : ''}
+          ${instructionHeaderStyle === 3 ? `
+            .prose .header-row, .prose tr:first-child td[colspan] { background-color: #fee2e2 !important; color: #7f1d1d !important; border-left: 6pt solid #7f1d1d !important; text-align: left !important; padding-left: 15pt !important; }
+          ` : ''}
+          ${instructionHeaderStyle === 4 ? `
+            .prose .header-row, .prose tr:first-child td[colspan] { border: 2pt solid #334155 !important; color: #334155 !important; background-color: transparent !important; }
+          ` : ''}
+          ${instructionHeaderStyle === 5 ? `
+            .prose .header-row, .prose tr:first-child td[colspan] { border: none !important; border-bottom: 3pt solid #334155 !important; color: #334155 !important; background-color: transparent !important; font-size: 14pt !important; font-weight: 900 !important; text-align: left !important; padding: 10pt 0 !important; }
+          ` : ''}
+          ${instructionHeaderStyle === 6 ? `
+            .prose .header-row, .prose tr:first-child td[colspan] { border: none !important; border-bottom: 4pt double #334155 !important; color: #334155 !important; background-color: transparent !important; text-align: left !important; padding: 8pt 0 !important; }
+          ` : ''}
+          ${instructionHeaderStyle === 7 ? `
+            .prose .header-row, .prose tr:first-child td[colspan] { background-color: #f1f5f9 !important; color: #1e293b !important; border-radius: 8pt !important; border: 1pt solid #e2e8f0 !important; }
+          ` : ''}
+          ${instructionHeaderStyle === 8 ? `
+            .prose .header-row, .prose tr:first-child td[colspan] { background-color: #e0e7ff !important; color: #3730a3 !important; border-right: 6pt solid #3730a3 !important; text-align: right !important; padding-right: 15pt !important; }
+          ` : ''}
+          ${instructionHeaderStyle === 9 ? `
+            .prose .header-row, .prose tr:first-child td[colspan] { background-color: #fffbeb !important; color: #92400e !important; border: 1.5pt dashed #92400e !important; }
+          ` : ''}
+          ${instructionHeaderStyle === 10 ? `
+            .prose .header-row, .prose tr:first-child td[colspan] { border: none !important; border-bottom: 1pt solid #e2e8f0 !important; color: #334155 !important; background-color: transparent !important; text-align: left !important; padding: 5pt 0 !important; }
+          ` : ''}
+          ${instructionHeaderStyle === 11 ? `
+            .prose .header-row, .prose tr:first-child td[colspan] { background: linear-gradient(90deg, #1e293b, #475569) !important; color: white !important; border-radius: 4pt !important; text-align: center !important; padding: 12pt !important; }
+          ` : ''}
+          ${instructionHeaderStyle === 12 ? `
+            .prose .header-row, .prose tr:first-child td[colspan] { border: 2pt solid #10b981 !important; color: #065f46 !important; background-color: #ecfdf5 !important; text-align: center !important; font-weight: 900 !important; }
+          ` : ''}
+          ${instructionHeaderStyle === 13 ? `
+            .prose .header-row, .prose tr:first-child td[colspan] { border: 3pt solid black !important; background-color: #facc15 !important; color: black !important; text-transform: uppercase !important; font-weight: 900 !important; }
+          ` : ''}
+          ${instructionHeaderStyle === 14 ? `
+            /* Mix Styles - No global override, let AI generate specific styles */
+          ` : ''}
 
           /* Zebra Striping - Disabled for decorative papers */
           ${globalLayout === 0 ? `
@@ -382,7 +443,7 @@ const Worksheet: React.FC<WorksheetProps> = ({
             margin-bottom: 15pt !important; 
           }
 
-          /* Round MCQ Support - Base Styles */
+          /* MCQ Style Support - Base Styles */
           .prose b, .prose strong {
             display: inline-flex;
             align-items: center;
@@ -391,13 +452,27 @@ const Worksheet: React.FC<WorksheetProps> = ({
             height: 1.2em;
             margin-right: 0.4em;
             transition: all 0.2s;
-            /* Word Export Compatibility: Use standard borders */
             border: none;
             background: transparent;
+            font-weight: 700 !important;
           }
 
-          /* Design-Specific Badge Overrides (Applied when isRoundMcq is true) */
-          ${isRoundMcq ? `
+          /* MCQ Style 0: Standard (No special styling) */
+          ${mcqStyle === 0 ? `
+            .prose b, .prose strong { 
+              display: inline; 
+              min-width: auto; 
+              height: auto; 
+              margin-right: 0.2em;
+              border: none !important;
+              background: transparent !important;
+              border-radius: 0 !important;
+              padding: 0 !important;
+            }
+          ` : ''}
+
+          /* MCQ Style 1: Rounded Badge (Styled by Design) */
+          ${mcqStyle === 1 ? `
             .design-modern-blue b, .design-modern-blue strong { background: #eff6ff; border: 0.5pt solid #2563eb; border-radius: 50% !important; color: #1e40af; }
             .design-classic b, .design-classic strong { background: transparent; border: 0.5pt solid black; border-radius: 50% !important; font-family: 'Georgia', serif; }
             .design-minimalist b, .design-minimalist strong { background: #f8fafc; border: none; border-bottom: 1pt solid black; border-radius: 0 !important; }
@@ -411,7 +486,18 @@ const Worksheet: React.FC<WorksheetProps> = ({
             .design-projector b, .design-projector strong { background: white; color: black; border-radius: 50% !important; font-weight: 900 !important; }
             .design-modern-round b, .design-modern-round strong { background: #e0e7ff; border: 1pt solid #6366f1; border-radius: 50% !important; color: #4338ca; }
             
-            /* Default if no design class matches but isRoundMcq is true */
+            /* Green Circles for Notebook and Emerald Layouts */
+            .layout-notebook b, .layout-notebook strong,
+            .layout-modern-emerald b, .layout-modern-emerald strong,
+            .layout-mint b, .layout-mint strong,
+            .layout-leaves b, .layout-leaves strong {
+              background: #ecfdf5 !important;
+              border: 1pt solid #059669 !important;
+              color: #059669 !important;
+              border-radius: 50% !important;
+            }
+            
+            /* Default if no design class matches */
             .worksheet-page:not([class*="design-"]) b, .worksheet-page:not([class*="design-"]) strong {
               background: transparent;
               border-radius: 50% !important;
@@ -419,12 +505,63 @@ const Worksheet: React.FC<WorksheetProps> = ({
               font-size: 0.9em;
               color: inherit;
               font-weight: 700 !important;
-              box-shadow: none;
             }
-          ` : `
-            /* Plain style when Round is OFF */
-            .prose b, .prose strong { border: none; background: transparent; min-width: auto; height: auto; display: inline; margin-right: 0.2em; }
-          `}
+          ` : ''}
+
+          /* MCQ Style 2: Boxed Letters */
+          ${mcqStyle === 2 ? `
+            .prose b, .prose strong {
+              border: 1pt solid #475569;
+              border-radius: 4px !important;
+              background: #f8fafc;
+              color: #1e293b;
+              padding: 0 4px;
+              min-width: 1.4em;
+            }
+          ` : ''}
+
+          /* MCQ Style 3: Parentheses */
+          ${mcqStyle === 3 ? `
+            .prose b, .prose strong {
+              display: inline;
+              background: transparent !important;
+              border: none !important;
+              padding: 0 !important;
+              margin-right: 0.2em;
+            }
+            .prose b::before, .prose strong::before { content: '('; }
+            .prose b::after, .prose strong::after { content: ')'; }
+          ` : ''}
+
+          /* MCQ Style 4: Underlined Letter */
+          ${mcqStyle === 4 ? `
+            .prose b, .prose strong {
+              display: inline;
+              background: transparent !important;
+              border: none !important;
+              border-bottom: 1.5pt solid currentColor !important;
+              border-radius: 0 !important;
+              padding: 0 !important;
+              min-width: auto;
+              height: auto;
+              margin-right: 0.3em;
+            }
+          ` : ''}
+
+          /* MCQ Style 5: Bold Letter */
+          ${mcqStyle === 5 ? `
+            .prose b, .prose strong {
+              display: inline;
+              background: transparent !important;
+              border: none !important;
+              padding: 0 !important;
+              min-width: auto;
+              height: auto;
+              font-weight: 900 !important;
+              font-size: 1.1em;
+              margin-right: 0.2em;
+            }
+          ` : ''}
 
           /* Design-Specific Table Overrides */
           .design-minimalist table { border: none !important; border-top: 2pt solid black !important; border-bottom: 2pt solid black !important; }
@@ -596,8 +733,8 @@ const Worksheet: React.FC<WorksheetProps> = ({
             background-color: #fff !important; 
             background-image: linear-gradient(#e5e7eb 1px, transparent 1px) !important;
             background-size: 100% 24pt !important;
-            border-left: 2pt solid #ef4444 !important;
-            padding-left: 40pt !important;
+            border-left: 4pt double #ef4444 !important;
+            padding-left: 45pt !important;
           }
           .layout-vintage { 
             background-color: #fef3c7 !important; 

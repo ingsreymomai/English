@@ -15,16 +15,21 @@ export const exportToWord = async (
   isFrameEnabled: boolean = false,
   activeDesign: string = '',
   paperStyles?: any,
-  isRoundMcq: boolean = false,
+  mcqStyle: number = 0,
   globalLayout: number = 0,
   baseLayout: number = 0,
-  instructionRulerStyle: number = 0
+  instructionRulerStyle: number = 0,
+  instructionHeaderStyle: number = 0
 ) => {
   const tempDiv = document.createElement('div');
   tempDiv.innerHTML = htmlContent;
 
   const headerDiv = document.createElement('div');
   headerDiv.innerHTML = headerHtml;
+
+  // Randomize Ruler Color if it's the middle ruler layout
+  const rulerColors = ['#ff0000', '#2563eb', '#16a34a', '#d97706', '#7c3aed', '#db2777', '#0f172a'];
+  const activeRulerColor = rulerColors[Math.floor(Math.random() * rulerColors.length)];
 
   const linePercentage = `200%`;
   const exactLineHeight = `24pt`;
@@ -79,7 +84,6 @@ export const exportToWord = async (
 
   // 2. FIX: Handle Round MCQ Badges for Word
   const designClass = activeDesign || '';
-  const mcqStyle = paperStyles?.mcq || 0;
 
   const badges = tempDiv.querySelectorAll('b, strong, span');
   badges.forEach(badge => {
@@ -98,8 +102,8 @@ export const exportToWord = async (
       (badge as HTMLElement).style.fontSize = '10pt';
       (badge as HTMLElement).style.verticalAlign = 'middle';
 
-      // Force Boxed/Circled based on paperStyles if isRoundMcq is true OR if specific style is selected
-      const forceBadge = isRoundMcq || mcqStyle === 2 || mcqStyle === 3;
+      // Force Boxed/Circled based on paperStyles if mcqStyle > 0
+      const forceBadge = mcqStyle > 0;
 
       if (forceBadge) {
         // Design-Specific Word Fallbacks
@@ -140,7 +144,7 @@ export const exportToWord = async (
           // Default fallback for forced badges
           (badge as HTMLElement).style.border = '1pt solid black';
           (badge as HTMLElement).style.backgroundColor = '#f8fafc';
-          if (mcqStyle === 3 || isRoundMcq) {
+          if (mcqStyle === 3 || mcqStyle === 1) {
             (badge as HTMLElement).style.borderRadius = '11pt';
           } else {
             (badge as HTMLElement).style.borderRadius = '0';
@@ -151,7 +155,7 @@ export const exportToWord = async (
   });
 
   // 2.1 FIX: Handle MCQ Blank Start and Underlined Letters for Word
-  const specialElements = tempDiv.querySelectorAll('.mcq-blank-start, u, .blank-line, .checkbox-box');
+  const specialElements = tempDiv.querySelectorAll('.mcq-blank-start, u, .blank-line, .checkbox-box, b, strong');
   specialElements.forEach(el => {
     if (el.classList.contains('mcq-blank-start') || el.classList.contains('blank-line')) {
       (el as HTMLElement).style.display = 'inline-block';
@@ -176,45 +180,72 @@ export const exportToWord = async (
       (el as HTMLElement).style.textDecoration = 'none';
       (el as HTMLElement).style.padding = '0 5pt';
     }
+    // MCQ Styling for Word
+    if (mcqStyle > 0 && (el.tagName === 'B' || el.tagName === 'STRONG' || el.tagName === 'SPAN')) {
+      let text = el.textContent?.trim().toUpperCase() || '';
+      // AGGRESSIVE STRIP: Remove brackets, periods, and spaces
+      text = text.replace(/[\(\)\[\]\.\s]/g, '');
+      
+      if (['A', 'B', 'C', 'D'].includes(text) && text.length === 1) {
+        // Apply Style 1: Round (Unicode Circled)
+        if (mcqStyle === 1) {
+          if (text === 'A') el.innerHTML = 'Ⓐ';
+          else if (text === 'B') el.innerHTML = 'Ⓑ';
+          else if (text === 'C') el.innerHTML = 'Ⓒ';
+          else if (text === 'D') el.innerHTML = 'Ⓓ';
+          (el as HTMLElement).style.fontSize = '14pt';
+          (el as HTMLElement).style.setProperty('mso-text-raise', '1pt');
+        } 
+        // Apply Style 2: Boxed
+        else if (mcqStyle === 2) {
+          el.innerHTML = `[${text}]`;
+          (el as HTMLElement).style.border = '0.5pt solid #475569';
+          (el as HTMLElement).style.padding = '0 2pt';
+          (el as HTMLElement).style.backgroundColor = '#f8fafc';
+        }
+        // Apply Style 3: Parentheses
+        else if (mcqStyle === 3) {
+          el.innerHTML = `(${text})`;
+        }
+        // Apply Style 4: Underlined
+        else if (mcqStyle === 4) {
+          el.innerHTML = text;
+          (el as HTMLElement).style.textDecoration = 'underline';
+          (el as HTMLElement).style.borderBottom = '1pt solid black';
+        }
+        // Apply Style 5: Bold
+        else if (mcqStyle === 5) {
+          el.innerHTML = text;
+          (el as HTMLElement).style.fontWeight = 'bold';
+          (el as HTMLElement).style.fontSize = '13pt';
+        }
+
+        // Common cleanup for styled MCQs
+        if (mcqStyle !== 0) {
+          (el as HTMLElement).style.borderRadius = '0';
+          (el as HTMLElement).style.display = 'inline-block';
+          (el as HTMLElement).style.width = 'auto';
+          
+          // Apply colors based on layout (for Style 1 and 2 mostly)
+          if (mcqStyle === 1 || mcqStyle === 2) {
+            if (globalLayout === 0) (el as HTMLElement).style.color = '#2563eb';
+            else if (globalLayout === 1) (el as HTMLElement).style.color = '#ea580c';
+            else if (globalLayout === 2 || globalLayout === 4 || globalLayout === 14 || globalLayout === 17) (el as HTMLElement).style.color = '#059669';
+            else if (globalLayout === 3 || globalLayout === 7) (el as HTMLElement).style.color = '#9333ea';
+            else if (globalLayout === 5 || globalLayout === 8) (el as HTMLElement).style.color = '#f97316';
+            else if (globalLayout === 6 || globalLayout === 13) (el as HTMLElement).style.color = '#0284c7';
+            else if (globalLayout === 9 || globalLayout === 11 || globalLayout === 12) (el as HTMLElement).style.color = '#db2777';
+            else if (globalLayout === 10) (el as HTMLElement).style.color = '#d97706';
+            else (el as HTMLElement).style.color = '#334155';
+          }
+        }
+      }
+    }
   });
 
   // 2.2 FIX: Handle Header for Middle Ruler (Option 4)
-  if (baseLayout === 3) {
-    // Wrap the entire header in a 2-column table to ensure the red line continues
-    const headerContent = headerDiv.innerHTML;
-    headerDiv.innerHTML = `
-      <table border="0" cellspacing="0" cellpadding="0" width="100%" style="width: 100%; border-collapse: collapse; mso-table-lspace:0pt; mso-table-rspace:0pt;">
-        <tr>
-          <td width="50%" style="padding: 0; border-right: 1.5pt solid #ff0000; mso-border-right-alt: 1.5pt solid #ff0000; vertical-align: top;">
-            ${headerContent}
-          </td>
-          <td width="50%" style="padding: 0; vertical-align: top;">
-            <!-- Spacer for ruler continuity -->
-          </td>
-        </tr>
-      </table>
-    `;
-    
-    // Now specifically handle the Name/Date flex container inside the first column
-    const headerContainer = headerDiv.querySelector('.flex.justify-between');
-    if (headerContainer) {
-      const leftContent = headerContainer.firstElementChild?.innerHTML || '';
-      const rightContent = headerContainer.lastElementChild?.innerHTML || '';
-      
-      headerContainer.outerHTML = `
-        <table border="0" cellspacing="0" cellpadding="0" width="100%" style="width: 100%; border-collapse: collapse; margin: 0; mso-table-lspace:0pt; mso-table-rspace:0pt;">
-          <tr>
-            <td width="50%" style="padding: 5pt; border-right: 1.5pt solid #ff0000; mso-border-right-alt: 1.5pt solid #ff0000; vertical-align: top;">
-              ${leftContent}
-            </td>
-            <td width="50%" style="padding: 5pt; vertical-align: top;">
-              ${rightContent}
-            </td>
-          </tr>
-        </table>
-      `;
-    }
-  }
+  // REMOVED: Global master table for baseLayout === 3 to prevent "ruler everywhere" mistake.
+  
   // This is the "Magic Fix" for Word
   let sections = Array.from(tempDiv.children);
   
@@ -326,10 +357,10 @@ export const exportToWord = async (
             cell.style.border = 'none'; 
             
             if (isFirstCol && !isHeader && row.cells.length === 2) {
-              // THIS IS THE CRITICAL RULER LINE - Using RED as requested/shown in image
+              // THIS IS THE CRITICAL RULER LINE - Using Randomized Color
               // We apply it to EVERY cell in the first column to ensure a continuous line
-              cell.style.borderRight = '1.5pt solid #ff0000'; 
-              cell.style.setProperty('mso-border-right-alt', '1.5pt solid #ff0000');
+              cell.style.borderRight = `1.5pt solid ${activeRulerColor}`; 
+              cell.style.setProperty('mso-border-right-alt', `1.5pt solid ${activeRulerColor}`);
               cell.style.width = '50%'; 
               cell.style.paddingRight = '15pt';
             }
@@ -338,9 +369,112 @@ export const exportToWord = async (
               cell.style.paddingLeft = '15pt';
             }
             if (isHeader) {
-              cell.style.borderBottom = '2.5pt solid #334155';
-              cell.style.setProperty('mso-border-bottom-alt', '2.5pt solid #334155');
-              cell.style.textAlign = 'center';
+              const cell = c as HTMLElement;
+              
+              // Apply Instruction Header Style
+              if (instructionHeaderStyle === 0) {
+                cell.style.backgroundColor = '#334155';
+                cell.style.color = '#ffffff';
+                cell.style.setProperty('mso-shading', 'windowtext 0% #334155');
+                cell.style.textAlign = 'center';
+              } else if (instructionHeaderStyle === 1) {
+                cell.style.backgroundColor = '#dbeafe';
+                cell.style.color = '#1e3a8a';
+                cell.style.setProperty('mso-shading', 'windowtext 0% #dbeafe');
+                cell.style.borderLeft = '6pt solid #1e3a8a';
+                cell.style.setProperty('mso-border-left-alt', '6pt solid #1e3a8a');
+                cell.style.textAlign = 'left';
+                cell.style.paddingLeft = '15pt';
+              } else if (instructionHeaderStyle === 2) {
+                cell.style.backgroundColor = '#dcfce7';
+                cell.style.color = '#064e3b';
+                cell.style.setProperty('mso-shading', 'windowtext 0% #dcfce7');
+                cell.style.borderLeft = '6pt solid #064e3b';
+                cell.style.setProperty('mso-border-left-alt', '6pt solid #064e3b');
+                cell.style.textAlign = 'left';
+                cell.style.paddingLeft = '15pt';
+              } else if (instructionHeaderStyle === 3) {
+                cell.style.backgroundColor = '#fee2e2';
+                cell.style.color = '#7f1d1d';
+                cell.style.setProperty('mso-shading', 'windowtext 0% #fee2e2');
+                cell.style.borderLeft = '6pt solid #7f1d1d';
+                cell.style.setProperty('mso-border-left-alt', '6pt solid #7f1d1d');
+                cell.style.textAlign = 'left';
+                cell.style.paddingLeft = '15pt';
+              } else if (instructionHeaderStyle === 4) {
+                cell.style.border = '2pt solid #334155';
+                cell.style.setProperty('mso-border-alt', '2pt solid #334155');
+                cell.style.color = '#334155';
+                cell.style.backgroundColor = 'transparent';
+                cell.style.textAlign = 'center';
+              } else if (instructionHeaderStyle === 5) {
+                cell.style.border = 'none';
+                cell.style.borderBottom = '3pt solid #334155';
+                cell.style.setProperty('mso-border-bottom-alt', '3pt solid #334155');
+                cell.style.color = '#334155';
+                cell.style.fontSize = '14pt';
+                cell.style.fontWeight = '900';
+                cell.style.textAlign = 'left';
+                cell.style.padding = '10pt 0';
+              } else if (instructionHeaderStyle === 6) {
+                cell.style.border = 'none';
+                cell.style.borderBottom = '4pt double #334155';
+                cell.style.setProperty('mso-border-bottom-alt', '4pt double #334155');
+                cell.style.color = '#334155';
+                cell.style.textAlign = 'left';
+                cell.style.padding = '8pt 0';
+              } else if (instructionHeaderStyle === 7) {
+                cell.style.backgroundColor = '#f1f5f9';
+                cell.style.setProperty('mso-shading', 'windowtext 0% #f1f5f9');
+                cell.style.color = '#1e293b';
+                cell.style.border = '1pt solid #e2e8f0';
+                cell.style.setProperty('mso-border-alt', '1pt solid #e2e8f0');
+              } else if (instructionHeaderStyle === 8) {
+                cell.style.backgroundColor = '#e0e7ff';
+                cell.style.setProperty('mso-shading', 'windowtext 0% #e0e7ff');
+                cell.style.color = '#3730a3';
+                cell.style.borderRight = '6pt solid #3730a3';
+                cell.style.setProperty('mso-border-right-alt', '6pt solid #3730a3');
+                cell.style.textAlign = 'right';
+                cell.style.paddingRight = '15pt';
+              } else if (instructionHeaderStyle === 9) {
+                cell.style.backgroundColor = '#fffbeb';
+                cell.style.setProperty('mso-shading', 'windowtext 0% #fffbeb');
+                cell.style.color = '#92400e';
+                cell.style.border = '1.5pt dashed #92400e';
+                cell.style.setProperty('mso-border-alt', '1.5pt dashed #92400e');
+              } else if (instructionHeaderStyle === 10) {
+                cell.style.border = 'none';
+                cell.style.borderBottom = '1pt solid #e2e8f0';
+                cell.style.setProperty('mso-border-bottom-alt', '1pt solid #e2e8f0');
+                cell.style.color = '#334155';
+                cell.style.textAlign = 'left';
+                cell.style.padding = '5pt 0';
+              } else if (instructionHeaderStyle === 11) {
+                cell.style.backgroundColor = '#1e293b';
+                cell.style.setProperty('mso-shading', 'windowtext 0% #1e293b');
+                cell.style.color = '#ffffff';
+                cell.style.textAlign = 'center';
+                cell.style.padding = '12pt';
+              } else if (instructionHeaderStyle === 12) {
+                cell.style.backgroundColor = '#ecfdf5';
+                cell.style.setProperty('mso-shading', 'windowtext 0% #ecfdf5');
+                cell.style.color = '#065f46';
+                cell.style.border = '2pt solid #10b981';
+                cell.style.setProperty('mso-border-alt', '2pt solid #10b981');
+                cell.style.textAlign = 'center';
+              } else if (instructionHeaderStyle === 13) {
+                cell.style.backgroundColor = '#facc15';
+                cell.style.setProperty('mso-shading', 'windowtext 0% #facc15');
+                cell.style.color = '#000000';
+                cell.style.border = '3pt solid #000000';
+                cell.style.setProperty('mso-border-alt', '3pt solid #000000');
+                cell.style.fontWeight = '900';
+              } else {
+                cell.style.borderBottom = '2.5pt solid #334155';
+                cell.style.setProperty('mso-border-bottom-alt', '2.5pt solid #334155');
+                cell.style.textAlign = 'center';
+              }
             }
           });
         });
@@ -388,6 +522,7 @@ export const exportToWord = async (
   // Apply Paper Style (globalLayout) to the main container
   let paperStyleCss = '';
   let bodyBgColor = '#ffffff';
+  let containerStyle = '';
   
   if (globalLayout === 0) { // Clean White
     paperStyleCss = 'background-color: #ffffff; border: 1.5pt solid #f1f5f9; padding: 10pt;';
@@ -415,12 +550,13 @@ export const exportToWord = async (
     bodyBgColor = '#f5f3ff';
   } else if (globalLayout === 8) { // Citrus
     paperStyleCss = 'background-color: #f0fdf4; border-right: 10pt solid #f97316; padding-right: 15pt;';
+    containerStyle += ' mso-border-right-alt: 10pt solid #f97316;';
     bodyBgColor = '#f0fdf4';
   } else if (globalLayout === 9) { // Rose
-    paperStyleCss = 'background-color: #fff1f2; border: 1pt solid #ffe4e6;';
+    paperStyleCss = 'background-color: #fff1f2; border: 6pt solid #fb7185; padding: 15pt;';
     bodyBgColor = '#fff1f2';
   } else if (globalLayout === 10) { // Stars
-    paperStyleCss = 'background-color: #ffffff; border: 10pt solid #fef3c7; padding: 10pt; border-style: double;';
+    paperStyleCss = 'background-color: #ffffff; border: 8pt double #fbbf24; padding: 20pt;';
     bodyBgColor = '#ffffff';
   } else if (globalLayout === 11) { // Flowers
     paperStyleCss = 'background-color: #ffffff; border: 10pt solid #fce7f3; padding: 10pt; border-style: double;';
@@ -441,7 +577,9 @@ export const exportToWord = async (
     paperStyleCss = 'background-color: #0f172a; color: #ffffff; border: 2pt solid #1e293b;';
     bodyBgColor = '#0f172a';
   } else if (globalLayout === 17) { // Notebook
-    paperStyleCss = 'background-color: #ffffff; border-left: 3pt solid #ef4444; padding-left: 25pt;';
+    // Red margin line - using a double border to mimic a real notebook margin
+    // We use a wider padding and a double line for the "Notebook" feel
+    paperStyleCss = 'background-color: #ffffff; border-left: 4.5pt double #ef4444; padding-left: 35pt;';
     bodyBgColor = '#ffffff';
   } else if (globalLayout === 18) { // Vintage
     paperStyleCss = 'background-color: #fef3c7; border: 1pt solid #fde68a;';
@@ -454,7 +592,7 @@ export const exportToWord = async (
   const shadingStyle = `mso-shading: windowtext 0% ${bodyBgColor};`;
 
   // 4. Structural Layout Enhancements (Borders for Paper Styles)
-  let containerStyle = `padding: 10pt; min-height: 10in; ${shadingStyle} ${frameStyle} ${paperStyleCss}`;
+  containerStyle = `padding: 10pt; min-height: 10in; ${shadingStyle} ${frameStyle} ${paperStyleCss}` + containerStyle;
   
   // Ensure all borders in paperStyleCss have mso-border-alt equivalents
   if (paperStyleCss.includes('border-left')) {
@@ -478,9 +616,9 @@ export const exportToWord = async (
     if (match) containerStyle += ` mso-border-alt: ${match[1]};`;
   }
 
-  // 5. Lined Paper Structural Fix (Apply border-bottom to paragraphs)
+  // 5. Lined Paper & Notebook Structural Fix (Apply border-bottom to paragraphs)
   // This is NATIVE Word borders, not visuals.
-  if (baseLayout === 1 || baseLayout === 3 || baseLayout === 4 || baseLayout >= 5) {
+  if (baseLayout === 1 || baseLayout === 3 || baseLayout === 4 || baseLayout >= 5 || globalLayout === 17) {
     const pElements = tempDiv.querySelectorAll('p, div.item, li, td, span, h1, h2, h3');
     pElements.forEach(p => {
       const el = p as HTMLElement;
@@ -488,31 +626,91 @@ export const exportToWord = async (
       if (el.closest('.header-row') || el.classList.contains('header-row')) return;
       if (el.tagName === 'SPAN' && !el.textContent?.trim()) return;
       
-      el.style.borderBottom = '0.5pt solid #cbd5e1';
-      el.style.paddingBottom = '4pt';
-      el.style.marginBottom = '8pt';
-      el.style.setProperty('mso-border-bottom-alt', '0.5pt solid #cbd5e1');
+      // For Notebook/Lined, we want the text to sit "on" the line
+      // We use a slightly darker blue for notebook lines if globalLayout is 17 for better visibility in Word
+      const lineColor = globalLayout === 17 ? '#93c5fd' : '#cbd5e1';
+      const lineWidth = globalLayout === 17 ? '1.0pt' : '0.5pt';
+      
+      el.style.borderBottom = `${lineWidth} solid ${lineColor}`;
+      el.style.paddingBottom = '2pt'; // Reduced to make text sit "on" the line
+      el.style.marginBottom = '10pt'; // Adjusted for 24pt line height feel
+      el.style.setProperty('mso-border-bottom-alt', `${lineWidth} solid ${lineColor}`);
     });
     
     // Also apply to headerDiv elements
     const headerElements = headerDiv.querySelectorAll('p, h1, h2, h3, div');
     headerElements.forEach(el => {
       const element = el as HTMLElement;
-      element.style.borderBottom = '0.5pt solid #cbd5e1';
-      element.style.paddingBottom = '4pt';
-      element.style.marginBottom = '8pt';
-      element.style.setProperty('mso-border-bottom-alt', '0.5pt solid #cbd5e1');
+      if (element.classList.contains('header-row')) return;
+      
+      const lineColor = globalLayout === 17 ? '#93c5fd' : '#cbd5e1';
+      const lineWidth = globalLayout === 17 ? '1.0pt' : '0.5pt';
+      element.style.borderBottom = `${lineWidth} solid ${lineColor}`;
+      element.style.paddingBottom = '2pt';
+      element.style.marginBottom = '10pt';
+      element.style.setProperty('mso-border-bottom-alt', `${lineWidth} solid ${lineColor}`);
     });
   }
 
-  // 6. Instruction Ruler Structural Fix
+  // 5.5 Decorative Elements for Word Export (Stars, Hearts, etc.)
+  if (globalLayout >= 10 && globalLayout <= 14) {
+    const symbols: Record<number, string> = { 10: '★', 11: '🌸', 12: '❤', 13: '🫧', 14: '🍃' };
+    const colors: Record<number, string> = { 10: '#fcd34d', 11: '#f9a8d4', 12: '#fca5a5', 13: '#bae6fd', 14: '#86efac' };
+    const symbol = symbols[globalLayout];
+    const color = colors[globalLayout];
+    
+    // Add decorative symbols to the header corners
+    const decoTable = document.createElement('table');
+    decoTable.style.width = '100%';
+    decoTable.style.marginBottom = '10pt';
+    decoTable.innerHTML = `
+      <tr>
+        <td style="font-size: 24pt; color: ${color}; opacity: 0.5; text-align: left;">${symbol} ${symbol}</td>
+        <td style="font-size: 24pt; color: ${color}; opacity: 0.5; text-align: right;">${symbol} ${symbol}</td>
+      </tr>
+    `;
+    headerDiv.insertBefore(decoTable, headerDiv.firstChild);
+
+    // Inject decorative elements more systematically to ensure they appear "on each page"
+    const contentNodes = Array.from(tempDiv.children);
+    // Insert every 3-4 nodes to simulate per-page presence
+    for (let i = 0; i < contentNodes.length; i += 3) {
+        const decoDiv = document.createElement('div');
+        const align = i % 2 === 0 ? 'left' : 'right';
+        const size = 18;
+        decoDiv.style.textAlign = align;
+        decoDiv.style.fontSize = `${size}pt`;
+        decoDiv.style.color = color;
+        decoDiv.style.opacity = '0.3';
+        decoDiv.style.margin = '10pt 0';
+        decoDiv.innerHTML = symbol.repeat(3);
+        
+        if (contentNodes[i]) {
+          tempDiv.insertBefore(decoDiv, contentNodes[i]);
+        }
+    }
+    
+    // Also add one at the very bottom
+    const bottomDeco = document.createElement('div');
+    bottomDeco.style.textAlign = 'center';
+    bottomDeco.style.fontSize = '24pt';
+    bottomDeco.style.color = color;
+    bottomDeco.style.opacity = '0.5';
+    bottomDeco.innerHTML = symbol.repeat(5);
+    tempDiv.appendChild(bottomDeco);
+  }
+
+  // 6. Instruction Ruler Structural Fix - Apply to ALL headers
   if (instructionRulerStyle > 0) {
-    const headerSection = tempDiv.querySelector('div.flex.flex-col.items-center');
-    if (headerSection) {
+    const headers = tempDiv.querySelectorAll('.header-row, tr:first-child td[colspan="2"], tr:first-child td[colspan="1"]');
+    headers.forEach(header => {
       const rulerDiv = document.createElement('div');
       rulerDiv.style.width = '100%';
-      rulerDiv.style.marginTop = '15pt';
-      rulerDiv.style.marginBottom = '15pt';
+      rulerDiv.style.marginTop = '5pt';
+      rulerDiv.style.marginBottom = '10pt';
+      rulerDiv.style.height = '1pt';
+      rulerDiv.style.fontSize = '1pt';
+      rulerDiv.innerHTML = '&nbsp;';
       
       if (instructionRulerStyle === 1) {
         rulerDiv.style.borderBottom = '1.5pt dashed #000000';
@@ -531,8 +729,13 @@ export const exportToWord = async (
         subRuler.style.marginTop = '2pt';
         rulerDiv.appendChild(subRuler);
       }
-      headerSection.appendChild(rulerDiv);
-    }
+      
+      // Find the parent row or table to insert after
+      const parentTable = header.closest('table');
+      if (parentTable) {
+        parentTable.parentNode?.insertBefore(rulerDiv, parentTable.nextSibling);
+      }
+    });
   }
 
   const content = `
