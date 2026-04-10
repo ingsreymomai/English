@@ -96,7 +96,7 @@ function App() {
 
   const [authLoading, setAuthLoading] = useState(false);
 
-  const [viewMode, setViewMode] = useState<'generator' | 'preview' | 'book_creation' | 'ielts_master' | 'dpss_studio' | 'grammar_iframe' | 'khmer_program' | 'design_paper' | 'header_footer_design' | 'paper_style_design' | 'instruction_design' | 'mcq_design'>('generator');
+  const [viewMode, setViewMode] = useState<'generator' | 'preview' | 'book_creation' | 'ielts_master' | 'dpss_studio' | 'grammar_iframe' | 'khmer_program' | 'design_paper' | 'header_footer_design' | 'paper_style_design' | 'instruction_design'>('generator');
   const [isSidebarOpen, setIsSidebarOpen] = useState(true);
   const [sidebarWidth, setSidebarWidth] = useState(280);
   const [sidebarSide, setSidebarSide] = useState<'left' | 'right'>('left');
@@ -1532,7 +1532,6 @@ ${componentLogic}
             onDesignPaperClick={() => setViewMode('design_paper')}
             onPaperStyleClick={() => setViewMode('paper_style_design')}
             onInstructionDesignClick={() => setViewMode('instruction_design')}
-            onMcqDesignClick={() => setViewMode('mcq_design')}
             onHeaderFooterDesignClick={() => setViewMode('header_footer_design')}
             mcqStyle={mcqStyle}
             onMcqStyleChange={setMcqStyle}
@@ -2374,20 +2373,10 @@ ${componentLogic}
                     { id: 8, name: 'Indigo Accent', style: { backgroundColor: '#e0e7ff', color: '#3730a3', padding: '10px', fontWeight: 'bold', borderRight: '4pt solid #3730a3' } },
                     { id: 9, name: 'Amber Box', style: { backgroundColor: '#fffbeb', color: '#92400e', padding: '10px', fontWeight: 'bold', border: '1pt dashed #92400e' } },
                     { id: 10, name: 'Clean Transparent', style: { color: '#334155', padding: '10px 0', fontWeight: 'bold', borderBottom: '1pt solid #e2e8f0' } },
-                    { id: 11, name: 'Green Double', style: { borderBottom: '4pt double #059669', color: '#059669', padding: '10px 0', fontWeight: 'bold' } },
-                    { id: 12, name: 'Dotted Blue', style: { border: '1.5pt dotted #2563eb', color: '#1e40af', padding: '10px', fontWeight: 'bold', backgroundColor: '#eff6ff', borderRadius: '4px' } },
-                    { id: 13, name: 'Thick Red Line', style: { borderBottom: '6pt solid #dc2626', color: '#991b1b', padding: '10px 0', fontWeight: '900' } },
-                    { id: 14, name: 'Neon Gradient', style: { background: 'linear-gradient(90deg, #7c3aed, #db2777)', color: 'white', padding: '12px', fontWeight: 'bold', textAlign: 'center', borderRadius: '12px', boxShadow: '0 4px 15px rgba(124, 58, 237, 0.3)' } },
-                    { id: 15, name: 'Modern Pillar', style: { borderLeft: '10pt solid #0f172a', backgroundColor: '#f1f5f9', color: '#0f172a', padding: '10px 20px', fontWeight: 'bold' } },
-                    { id: 16, name: 'Dashed Slate', style: { border: '2pt dashed #64748b', color: '#475569', padding: '10px', fontWeight: 'bold' } },
-                    { id: 17, name: 'Glassmorphism', style: { background: 'rgba(255, 255, 255, 0.4)', backdropFilter: 'blur(10px)', border: '1pt solid rgba(255, 255, 255, 0.5)', color: '#1e293b', padding: '10px', fontWeight: 'bold', borderRadius: '15px' } },
-                    { id: 18, name: 'Brutalist Pop', style: { backgroundColor: '#facc15', color: 'black', border: '3pt solid black', boxShadow: '6pt 6pt 0 black', padding: '10px', fontWeight: '900', textTransform: 'uppercase' } },
-                    { id: 19, name: 'Elegant Gold', style: { background: 'linear-gradient(135deg, #92400e 0%, #d97706 100%)', color: '#fef3c7', padding: '10px', fontWeight: 'bold', border: '1pt solid #f59e0b', fontStyle: 'italic' } },
-                    { id: 20, name: 'Minimalist Gray', style: { borderBottom: '0.5pt solid #cbd5e1', color: '#94a3b8', padding: '5px 0', fontWeight: 'bold', textAlign: 'right', fontSize: '9pt' } },
-                    { id: 21, name: 'Gradient Night', style: { background: 'linear-gradient(90deg, #1e293b, #475569)', color: 'white', padding: '12px', fontWeight: 'bold', textAlign: 'center', borderRadius: '4px' } },
-                    { id: 22, name: 'Neon Emerald', style: { border: '2pt solid #10b981', color: '#065f46', padding: '10px', fontWeight: '900', textAlign: 'center', backgroundColor: '#ecfdf5' } },
-                    { id: 23, name: 'Brutalist Yellow', style: { border: '3pt solid black', backgroundColor: '#facc15', color: 'black', padding: '10px', fontWeight: '900', textTransform: 'uppercase' } },
-                    { id: 24, name: 'Mix Styles', style: { background: 'repeating-linear-gradient(45deg, #f1f5f9, #f1f5f9 10px, #ffffff 10px, #ffffff 20px)', border: '1pt solid #cbd5e1', color: '#334155', padding: '10px', fontWeight: 'bold', textAlign: 'center' } }
+                    { id: 11, name: 'Gradient Night', style: { background: 'linear-gradient(90deg, #1e293b, #475569)', color: 'white', padding: '12px', fontWeight: 'bold', textAlign: 'center', borderRadius: '4px' } },
+                    { id: 12, name: 'Neon Emerald', style: { border: '2pt solid #10b981', color: '#065f46', padding: '10px', fontWeight: '900', textAlign: 'center', backgroundColor: '#ecfdf5' } },
+                    { id: 13, name: 'Brutalist Yellow', style: { border: '3pt solid black', backgroundColor: '#facc15', color: 'black', padding: '10px', fontWeight: '900', textTransform: 'uppercase' } },
+                    { id: 14, name: 'Mix Styles', style: { background: 'repeating-linear-gradient(45deg, #f1f5f9, #f1f5f9 10px, #ffffff 10px, #ffffff 20px)', border: '1pt solid #cbd5e1', color: '#334155', padding: '10px', fontWeight: 'bold', textAlign: 'center' } }
                   ].map((style) => (
                     <div 
                       key={style.id}
@@ -2401,100 +2390,6 @@ ${componentLogic}
                       <div className="bg-white p-4 border border-slate-100 rounded-xl">
                         <div style={style.style as any}>PART A: CHOOSE THE BEST OPTION</div>
                       </div>
-                    </div>
-                  ))}
-                </div>
-              </div>
-            </div>
-          </div>
-        </section>
-      )}
-
-      {viewMode === 'mcq_design' && (
-        <section 
-          style={{ 
-            marginLeft: isSidebarOpen && sidebarSide === 'left' ? (windowWidth >= 1024 ? `${sidebarWidth}px` : '0px') : '0px',
-            marginRight: isSidebarOpen && sidebarSide === 'right' ? (windowWidth >= 1024 ? `${sidebarWidth}px` : '0px') : '0px'
-          }}
-          className="flex-1 flex flex-col overflow-hidden animate-in fade-in duration-500 bg-slate-50 transition-all duration-300"
-        >
-          <div className="p-4 lg:p-6 bg-white border-b border-slate-200 flex flex-wrap gap-4 justify-between items-center z-10 no-print shadow-sm">
-            <button onClick={() => setViewMode('generator')} className="border border-slate-200 text-slate-600 px-6 lg:px-8 py-3 rounded-xl text-[11px] font-bold uppercase tracking-widest hover:bg-slate-50 flex items-center gap-4 group transition-all">
-              <i className="fa-solid fa-arrow-left group-hover:-translate-x-1 transition-transform"></i> WORKSPACE
-            </button>
-            <div className="flex-1 text-center">
-              <h2 className="text-slate-800 font-bold uppercase tracking-widest text-[12px]">MCQ Design Architect</h2>
-            </div>
-            <div className="flex gap-2">
-              <button 
-                onClick={handleSetDefaultMcqStyle}
-                className="px-6 py-3 bg-white border border-slate-200 text-slate-600 rounded-xl text-[11px] font-bold uppercase tracking-widest hover:bg-slate-50 shadow-sm flex items-center gap-2 transition-all"
-              >
-                <i className="fa-solid fa-star"></i> Set Default
-              </button>
-              <button 
-                onClick={() => setViewMode('generator')}
-                className="px-6 py-3 bg-orange-600 text-white rounded-xl text-[11px] font-bold uppercase tracking-widest hover:bg-orange-700 shadow-sm flex items-center gap-2 transition-all"
-              >
-                <i className="fa-solid fa-check"></i> Save & Apply
-              </button>
-            </div>
-          </div>
-          <div className="flex-1 bg-slate-50 overflow-y-auto p-8 no-scrollbar">
-            <div className="max-w-5xl mx-auto space-y-10">
-              <div className="bg-white rounded-[32px] p-10 border border-slate-100 shadow-sm">
-                <div className="flex items-center gap-4 mb-2">
-                  <div className="h-12 w-12 bg-orange-100 text-orange-600 rounded-2xl flex items-center justify-center text-xl">
-                    <i className="fa-solid fa-list-ol"></i>
-                  </div>
-                  <div>
-                    <h3 className="text-xl font-black text-slate-900 uppercase tracking-tight">MCQ Style Architect</h3>
-                    <p className="text-sm text-slate-500">Choose how your multiple choice letters (A, B, C, D) appear on the paper.</p>
-                  </div>
-                </div>
-                
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mt-10">
-                  {[
-                    { id: 0, name: 'None', icon: 'fa-font', desc: 'Standard plain text' },
-                    { id: 1, name: 'Round Badge', icon: 'fa-circle-dot', desc: 'Inherits color from paper design' },
-                    { id: 2, name: 'Boxed', icon: 'fa-square', desc: 'Clean slate border box' },
-                    { id: 3, name: 'Parentheses', icon: 'fa-brackets-round', desc: '(A) (B) (C) (D)' },
-                    { id: 4, name: 'Underlined', icon: 'fa-underline', desc: 'Elegant underline' },
-                    { id: 5, name: 'Bold Impact', icon: 'fa-bold', desc: 'Extra thick and large' },
-                    { id: 6, name: 'Shadow Box', icon: 'fa-layer-group', desc: 'Modern 3D shadow effect' },
-                    { id: 7, name: 'Double Circle', icon: 'fa-circle-nodes', desc: 'Sophisticated double border' },
-                    { id: 8, name: 'Neon Glow', icon: 'fa-bolt', desc: 'Green neon terminal style' },
-                    { id: 9, name: 'Brutalist', icon: 'fa-cube', desc: 'Bold yellow offset style' },
-                    { id: 10, name: 'Soft Glow', icon: 'fa-sun', desc: 'Pink ethereal glow' },
-                    { id: 11, name: 'Diamond', icon: 'fa-diamond', desc: 'Rotated 45 degree box' },
-                    { id: 12, name: 'Hexagon', icon: 'fa-hexagon', desc: 'Geometric honeycomb shape' },
-                    { id: 13, name: 'Badge', icon: 'fa-id-badge', desc: 'Hanging slate badge' },
-                    { id: 14, name: 'Minimalist Dot', icon: 'fa-ellipsis', desc: 'A • B • C • D' },
-                    { id: 15, name: 'Gradient', icon: 'fa-palette', desc: 'Vibrant purple gradient' }
-                  ].map((style) => (
-                    <div 
-                      key={style.id}
-                      onClick={() => setMcqStyle(style.id)}
-                      className={`p-6 rounded-2xl border-2 cursor-pointer transition-all ${mcqStyle === style.id ? 'border-orange-500 bg-orange-50/30 shadow-md' : 'border-slate-200 hover:border-orange-300 bg-white'}`}
-                    >
-                      <div className="flex justify-between items-center mb-4">
-                        <div className="flex items-center gap-3">
-                          <i className={`fa-solid ${style.icon} text-slate-400`}></i>
-                          <h5 className="font-bold text-slate-700">{style.name}</h5>
-                        </div>
-                        {mcqStyle === style.id && <div className="h-6 w-6 bg-orange-500 text-white rounded-full flex items-center justify-center text-xs"><i className="fa-solid fa-check"></i></div>}
-                      </div>
-                      <div className="bg-slate-50 p-4 rounded-xl mb-3">
-                        <div className="flex gap-4 items-center justify-center">
-                          {['A', 'B', 'C', 'D'].map(letter => (
-                            <div key={letter} className="flex items-center gap-2">
-                              <span className="font-bold text-slate-400 text-[10px]">{letter}</span>
-                              <div className="h-4 w-12 bg-slate-200 rounded-full"></div>
-                            </div>
-                          ))}
-                        </div>
-                      </div>
-                      <p className="text-[10px] text-slate-400 italic">{style.desc}</p>
                     </div>
                   ))}
                 </div>

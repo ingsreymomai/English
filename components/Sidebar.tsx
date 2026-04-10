@@ -35,7 +35,6 @@ interface SidebarProps {
   onDesignPaperClick: () => void;
   onPaperStyleClick: () => void;
   onInstructionDesignClick: () => void;
-  onMcqDesignClick: () => void;
   onHeaderFooterDesignClick: () => void;
   onSubjectsClick: () => void;
   mcqLayout: 'single' | 'double' | 'quad';
@@ -71,7 +70,6 @@ const Sidebar: React.FC<SidebarProps> = ({
   onDesignPaperClick,
   onPaperStyleClick,
   onInstructionDesignClick,
-  onMcqDesignClick,
   onHeaderFooterDesignClick,
   onSubjectsClick,
   mcqLayout, onMcqLayoutChange,
@@ -212,19 +210,43 @@ const Sidebar: React.FC<SidebarProps> = ({
             <i className="fa-solid fa-chevron-right text-rose-400 group-hover:text-rose-600 transition-colors text-[7px]"></i>
           </button>
           <button 
-            onClick={onMcqDesignClick}
-            className="w-full flex items-center justify-between bg-white p-2 rounded-lg border border-orange-200 hover:bg-orange-100 hover:border-orange-300 transition-colors group shadow-sm"
-          >
-            <span className="text-[8px] font-black text-orange-600 uppercase tracking-widest">MCQ Design</span>
-            <i className="fa-solid fa-chevron-right text-orange-400 group-hover:text-orange-600 transition-colors text-[7px]"></i>
-          </button>
-          <button 
             onClick={onPaperStyleClick}
             className="w-full flex items-center justify-between bg-white p-2 rounded-lg border border-emerald-200 hover:bg-emerald-100 hover:border-emerald-300 transition-colors group shadow-sm"
           >
             <span className="text-[8px] font-black text-emerald-600 uppercase tracking-widest">Paper Style</span>
             <i className="fa-solid fa-chevron-right text-emerald-400 group-hover:text-emerald-600 transition-colors text-[7px]"></i>
           </button>
+
+          <div className="bg-white p-2 rounded-lg border border-orange-200 space-y-2">
+            <div className="flex items-center justify-between">
+              <span className="text-[8px] font-black text-orange-600 uppercase tracking-widest">MCQ Design</span>
+              <button 
+                onClick={onSetDefaultMcqStyle}
+                className="text-[7px] font-bold text-slate-400 hover:text-orange-600 uppercase tracking-tighter border border-slate-100 px-1.5 py-0.5 rounded bg-slate-50"
+              >
+                Set Default
+              </button>
+            </div>
+            <div className="grid grid-cols-3 gap-1">
+              {[
+                { id: 0, label: 'None', icon: 'fa-font' },
+                { id: 1, label: 'Round', icon: 'fa-circle-dot' },
+                { id: 2, label: 'Box', icon: 'fa-square' },
+                { id: 3, label: 'Paren', icon: 'fa-brackets-round' },
+                { id: 4, label: 'Under', icon: 'fa-underline' },
+                { id: 5, label: 'Bold', icon: 'fa-bold' }
+              ].map((s) => (
+                <button
+                  key={s.id}
+                  onClick={() => onMcqStyleChange(s.id)}
+                  className={`h-7 rounded-md border flex flex-col items-center justify-center gap-0 transition-all ${mcqStyle === s.id ? 'bg-orange-600 border-orange-600 text-white shadow-sm' : 'bg-white border-orange-100 text-orange-400 hover:border-orange-300'}`}
+                >
+                  <i className={`fa-solid ${s.icon} text-[8px]`}></i>
+                  <span className="text-[7px] font-bold">{s.label}</span>
+                </button>
+              ))}
+            </div>
+          </div>
 
           <button 
             onClick={onSubjectsClick}

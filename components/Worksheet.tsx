@@ -198,45 +198,15 @@ const Worksheet: React.FC<WorksheetProps> = ({
             .prose .header-row, .prose tr:first-child td[colspan] { border: none !important; border-bottom: 1pt solid #e2e8f0 !important; color: #334155 !important; background-color: transparent !important; text-align: left !important; padding: 5pt 0 !important; }
           ` : ''}
           ${instructionHeaderStyle === 11 ? `
-            .prose .header-row, .prose tr:first-child td[colspan] { border: none !important; border-bottom: 4pt double #059669 !important; color: #059669 !important; background-color: transparent !important; text-align: left !important; padding: 8pt 0 !important; }
-          ` : ''}
-          ${instructionHeaderStyle === 12 ? `
-            .prose .header-row, .prose tr:first-child td[colspan] { border: 1.5pt dotted #2563eb !important; color: #1e40af !important; background-color: #eff6ff !important; border-radius: 4pt !important; }
-          ` : ''}
-          ${instructionHeaderStyle === 13 ? `
-            .prose .header-row, .prose tr:first-child td[colspan] { border: none !important; border-bottom: 6pt solid #dc2626 !important; color: #991b1b !important; background-color: transparent !important; text-align: left !important; padding: 10pt 0 !important; font-weight: 900 !important; }
-          ` : ''}
-          ${instructionHeaderStyle === 14 ? `
-            .prose .header-row, .prose tr:first-child td[colspan] { background: linear-gradient(90deg, #7c3aed, #db2777) !important; color: white !important; border-radius: 12pt !important; padding: 12pt !important; box-shadow: 0 4px 15px rgba(124, 58, 237, 0.3) !important; }
-          ` : ''}
-          ${instructionHeaderStyle === 15 ? `
-            .prose .header-row, .prose tr:first-child td[colspan] { border-left: 10pt solid #0f172a !important; background-color: #f1f5f9 !important; color: #0f172a !important; text-align: left !important; padding-left: 20pt !important; }
-          ` : ''}
-          ${instructionHeaderStyle === 16 ? `
-            .prose .header-row, .prose tr:first-child td[colspan] { border: 2pt dashed #64748b !important; color: #475569 !important; background-color: transparent !important; border-radius: 0 !important; }
-          ` : ''}
-          ${instructionHeaderStyle === 17 ? `
-            .prose .header-row, .prose tr:first-child td[colspan] { background: rgba(255, 255, 255, 0.4) !important; backdrop-filter: blur(10px) !important; border: 1pt solid rgba(255, 255, 255, 0.5) !important; color: #1e293b !important; border-radius: 15pt !important; box-shadow: 0 8px 32px 0 rgba(31, 38, 135, 0.07) !important; }
-          ` : ''}
-          ${instructionHeaderStyle === 18 ? `
-            .prose .header-row, .prose tr:first-child td[colspan] { background-color: #facc15 !important; color: black !important; border: 3pt solid black !important; box-shadow: 6pt 6pt 0 black !important; text-transform: uppercase !important; font-weight: 900 !important; }
-          ` : ''}
-          ${instructionHeaderStyle === 19 ? `
-            .prose .header-row, .prose tr:first-child td[colspan] { background: linear-gradient(135deg, #92400e 0%, #d97706 100%) !important; color: #fef3c7 !important; border: 1pt solid #f59e0b !important; font-family: 'Garamond', serif !important; font-style: italic !important; }
-          ` : ''}
-          ${instructionHeaderStyle === 20 ? `
-            .prose .header-row, .prose tr:first-child td[colspan] { border: none !important; border-bottom: 0.5pt solid #cbd5e1 !important; color: #94a3b8 !important; background-color: transparent !important; text-align: right !important; font-size: 9pt !important; text-transform: lowercase !important; }
-          ` : ''}
-          ${instructionHeaderStyle === 21 ? `
             .prose .header-row, .prose tr:first-child td[colspan] { background: linear-gradient(90deg, #1e293b, #475569) !important; color: white !important; border-radius: 4pt !important; text-align: center !important; padding: 12pt !important; }
           ` : ''}
-          ${instructionHeaderStyle === 22 ? `
+          ${instructionHeaderStyle === 12 ? `
             .prose .header-row, .prose tr:first-child td[colspan] { border: 2pt solid #10b981 !important; color: #065f46 !important; background-color: #ecfdf5 !important; text-align: center !important; font-weight: 900 !important; }
           ` : ''}
-          ${instructionHeaderStyle === 23 ? `
+          ${instructionHeaderStyle === 13 ? `
             .prose .header-row, .prose tr:first-child td[colspan] { border: 3pt solid black !important; background-color: #facc15 !important; color: black !important; text-transform: uppercase !important; font-weight: 900 !important; }
           ` : ''}
-          ${instructionHeaderStyle === 24 ? `
+          ${instructionHeaderStyle === 14 ? `
             /* Mix Styles - No global override, let AI generate specific styles */
           ` : ''}
 
@@ -590,133 +560,6 @@ const Worksheet: React.FC<WorksheetProps> = ({
               font-weight: 900 !important;
               font-size: 1.1em;
               margin-right: 0.2em;
-            }
-          ` : ''}
-
-          /* MCQ Style 6: Shadow */
-          ${mcqStyle === 6 ? `
-            .prose b, .prose strong {
-              background: white;
-              border: 1pt solid #e2e8f0;
-              border-radius: 6px !important;
-              box-shadow: 3px 3px 0 #cbd5e1;
-              color: #1e293b;
-              min-width: 1.5em;
-            }
-          ` : ''}
-
-          /* MCQ Style 7: Double Circle */
-          ${mcqStyle === 7 ? `
-            .prose b, .prose strong {
-              border: 1pt solid #334155;
-              border-radius: 50% !important;
-              padding: 2px;
-              background: transparent;
-            }
-            .prose b::before, .prose strong::before {
-              content: '';
-              position: absolute;
-              inset: 2px;
-              border: 0.5pt solid #334155;
-              border-radius: 50%;
-              pointer-events: none;
-            }
-          ` : ''}
-
-          /* MCQ Style 8: Neon */
-          ${mcqStyle === 8 ? `
-            .prose b, .prose strong {
-              background: #000;
-              color: #00ff00;
-              border: 1pt solid #00ff00;
-              border-radius: 4px !important;
-              box-shadow: 0 0 5px #00ff00;
-              text-shadow: 0 0 2px #00ff00;
-              font-family: 'Courier New', monospace;
-            }
-          ` : ''}
-
-          /* MCQ Style 9: Brutalist */
-          ${mcqStyle === 9 ? `
-            .prose b, .prose strong {
-              background: #facc15;
-              color: black;
-              border: 2pt solid black;
-              border-radius: 0 !important;
-              transform: rotate(-2deg);
-              font-weight: 900 !important;
-            }
-          ` : ''}
-
-          /* MCQ Style 10: Soft Glow */
-          ${mcqStyle === 10 ? `
-            .prose b, .prose strong {
-              background: #fdf2f8;
-              color: #db2777;
-              border: none;
-              border-radius: 50% !important;
-              box-shadow: 0 0 10px #fbcfe8;
-            }
-          ` : ''}
-
-          /* MCQ Style 11: Diamond */
-          ${mcqStyle === 11 ? `
-            .prose b, .prose strong {
-              background: #f1f5f9;
-              border: 1pt solid #475569;
-              transform: rotate(45deg);
-              border-radius: 2px !important;
-            }
-            .prose b span, .prose strong span, .prose b text, .prose strong text {
-              transform: rotate(-45deg);
-              display: block;
-            }
-          ` : ''}
-
-          /* MCQ Style 12: Hexagon */
-          ${mcqStyle === 12 ? `
-            .prose b, .prose strong {
-              background: #e2e8f0;
-              clip-path: polygon(25% 0%, 75% 0%, 100% 50%, 75% 100%, 25% 100%, 0% 50%);
-              border-radius: 0 !important;
-              min-width: 1.8em;
-            }
-          ` : ''}
-
-          /* MCQ Style 13: Badge */
-          ${mcqStyle === 13 ? `
-            .prose b, .prose strong {
-              background: #334155;
-              color: white;
-              border-radius: 0 0 8px 8px !important;
-              height: 1.5em;
-              align-items: flex-start;
-              padding-top: 2px;
-            }
-          ` : ''}
-
-          /* MCQ Style 14: Minimalist Dot */
-          ${mcqStyle === 14 ? `
-            .prose b, .prose strong {
-              display: inline;
-              background: transparent !important;
-              border: none !important;
-              padding: 0 !important;
-              margin-right: 0.5em;
-            }
-            .prose b::after, .prose strong::after {
-              content: ' •';
-              color: #cbd5e1;
-            }
-          ` : ''}
-
-          /* MCQ Style 15: Gradient */
-          ${mcqStyle === 15 ? `
-            .prose b, .prose strong {
-              background: linear-gradient(135deg, #6366f1, #a855f7);
-              color: white;
-              border-radius: 50% !important;
-              border: none;
             }
           ` : ''}
 
