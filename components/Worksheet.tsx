@@ -236,12 +236,6 @@ const Worksheet: React.FC<WorksheetProps> = ({
           ${instructionHeaderStyle === 23 ? `
             .prose .header-row, .prose tr:first-child td[colspan] { border: 3pt solid black !important; background-color: #facc15 !important; color: black !important; text-transform: uppercase !important; font-weight: 900 !important; }
           ` : ''}
-          ${instructionHeaderStyle === 25 ? `
-            .prose .header-row, .prose tr:first-child td[colspan] { border-left: 15pt solid #1e40af !important; background-color: #eff6ff !important; color: #1e40af !important; text-align: left !important; padding-left: 20pt !important; font-weight: bold !important; }
-          ` : ''}
-          ${instructionHeaderStyle === 26 ? `
-            .prose .header-row, .prose tr:first-child td[colspan] { border: 1pt solid #cbd5e1 !important; border-bottom: 4pt solid #334155 !important; background-color: #f8fafc !important; color: #334155 !important; text-align: center !important; text-transform: uppercase !important; letter-spacing: 0.1em !important; padding: 12pt !important; }
-          ` : ''}
           ${instructionHeaderStyle === 24 ? `
             /* Mix Styles - No global override, let AI generate specific styles */
           ` : ''}
@@ -906,32 +900,6 @@ const Worksheet: React.FC<WorksheetProps> = ({
           .layout-modern { 
             background: linear-gradient(45deg, #f8fafc 25%, #f1f5f9 25%, #f1f5f9 50%, #f8fafc 50%, #f8fafc 75%, #f1f5f9 75%, #f1f5f9 100%) !important;
             background-size: 100px 100px !important;
-          }
-
-          /* Answer Key Styling */
-          .answer-key-section {
-            margin-top: 40pt;
-            border-top: 2pt dashed #cbd5e1;
-            padding-top: 20pt;
-            page-break-before: always;
-          }
-          .answer-key-title {
-            font-size: 16pt;
-            font-weight: 900;
-            color: #1e293b;
-            text-align: center;
-            margin-bottom: 20pt;
-            text-transform: uppercase;
-            letter-spacing: 0.2em;
-          }
-          .answer-item {
-            margin-bottom: 8pt;
-            font-size: 11pt;
-          }
-          .answer-label {
-            font-weight: bold;
-            color: #64748b;
-            margin-right: 8pt;
           }
         `}</style>
         

@@ -47,12 +47,6 @@ interface SidebarProps {
   onSetDefaultMcqStyle?: () => void;
   instructionCase: 'uppercase' | 'lowercase' | 'random';
   onInstructionCaseChange: (val: 'uppercase' | 'lowercase' | 'random') => void;
-  difficulty: 'easy' | 'medium' | 'hard';
-  onDifficultyChange: (val: 'easy' | 'medium' | 'hard') => void;
-  showAnswerKey: boolean;
-  onShowAnswerKeyChange: (val: boolean) => void;
-  isProMode: boolean;
-  onProModeChange: (val: boolean) => void;
   width?: number;
   onWidthChange?: (width: number) => void;
   side?: 'left' | 'right';
@@ -85,9 +79,6 @@ const Sidebar: React.FC<SidebarProps> = ({
   mcqStyle, onMcqStyleChange,
   onSetDefaultMcqStyle,
   instructionCase, onInstructionCaseChange,
-  difficulty, onDifficultyChange,
-  showAnswerKey, onShowAnswerKeyChange,
-  isProMode, onProModeChange,
   width = 280,
   onWidthChange,
   side = 'left',
@@ -177,37 +168,8 @@ const Sidebar: React.FC<SidebarProps> = ({
             </div>
           </div>
 
-        <div className="flex flex-col gap-3 bg-slate-900 p-4 rounded-2xl border border-slate-800 shadow-xl">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-2">
-              <div className="h-6 w-6 bg-orange-500 rounded-lg flex items-center justify-center">
-                <i className="fa-solid fa-crown text-white text-[10px]"></i>
-              </div>
-              <span className="text-[9px] font-black text-white uppercase tracking-widest">Pro Architect</span>
-            </div>
-            <button 
-              onClick={() => onProModeChange(!isProMode)}
-              className={`w-8 h-4 rounded-full transition-all relative ${isProMode ? 'bg-orange-500' : 'bg-slate-700'}`}
-            >
-              <div className={`absolute top-0.5 w-3 h-3 rounded-full bg-white transition-all ${isProMode ? 'left-[18px]' : 'left-[2px]'}`}></div>
-            </button>
-          </div>
-
-          <div className="space-y-3 mt-1">
-            <div className="flex items-center justify-between pt-1">
-              <span className="text-[8px] font-black text-slate-300 uppercase tracking-widest">Generate Answer Key</span>
-              <button 
-                onClick={() => onShowAnswerKeyChange(!showAnswerKey)}
-                className={`w-8 h-4 rounded-full transition-all relative ${showAnswerKey ? 'bg-emerald-500' : 'bg-slate-700'}`}
-              >
-                <div className={`absolute top-0.5 w-3 h-3 rounded-full bg-white transition-all ${showAnswerKey ? 'left-[18px]' : 'left-[2px]'}`}></div>
-              </button>
-            </div>
-          </div>
-        </div>
-
         <div className="flex bg-slate-100 p-1 rounded-xl gap-1">
-          {['GRAMMAR', 'READING', 'VOCABULARY', 'CUSTOM'].map(mod => (
+          {['GRAMMAR', 'READING', 'VOCABULARY'].map(mod => (
             <button
               key={mod}
               onClick={() => onModuleChange(mod.charAt(0) + mod.slice(1).toLowerCase())}
@@ -237,32 +199,23 @@ const Sidebar: React.FC<SidebarProps> = ({
         <div className="flex flex-col gap-2 bg-purple-50 p-3 rounded-xl border border-purple-100">
           <button 
             onClick={onDesignPaperClick}
-            className="w-full flex items-center justify-between bg-white p-2 rounded-lg border border-purple-200 hover:bg-purple-100 hover:border-purple-300 transition-colors group shadow-sm relative overflow-hidden"
+            className="w-full flex items-center justify-between bg-white p-2 rounded-lg border border-purple-200 hover:bg-purple-100 hover:border-purple-300 transition-colors group shadow-sm"
           >
-            <div className="flex items-center gap-2">
-              <span className="text-[8px] font-black text-purple-600 uppercase tracking-widest">Designing Test</span>
-              <span className="bg-purple-600 text-white text-[6px] px-1 rounded-sm font-black">PRO</span>
-            </div>
+            <span className="text-[8px] font-black text-purple-600 uppercase tracking-widest">Design Paper Test</span>
             <i className="fa-solid fa-chevron-right text-purple-400 group-hover:text-purple-600 transition-colors text-[7px]"></i>
           </button>
           <button 
             onClick={onInstructionDesignClick}
-            className="w-full flex items-center justify-between bg-white p-2 rounded-lg border border-rose-200 hover:bg-rose-100 hover:border-rose-300 transition-colors group shadow-sm relative overflow-hidden"
+            className="w-full flex items-center justify-between bg-white p-2 rounded-lg border border-rose-200 hover:bg-rose-100 hover:border-rose-300 transition-colors group shadow-sm"
           >
-            <div className="flex items-center gap-2">
-              <span className="text-[8px] font-black text-rose-600 uppercase tracking-widest">Instruction Design</span>
-              <span className="bg-rose-600 text-white text-[6px] px-1 rounded-sm font-black">PRO</span>
-            </div>
+            <span className="text-[8px] font-black text-rose-600 uppercase tracking-widest">Instruction Design</span>
             <i className="fa-solid fa-chevron-right text-rose-400 group-hover:text-rose-600 transition-colors text-[7px]"></i>
           </button>
           <button 
             onClick={onMcqDesignClick}
-            className="w-full flex items-center justify-between bg-white p-2 rounded-lg border border-orange-200 hover:bg-orange-100 hover:border-orange-300 transition-colors group shadow-sm relative overflow-hidden"
+            className="w-full flex items-center justify-between bg-white p-2 rounded-lg border border-orange-200 hover:bg-orange-100 hover:border-orange-300 transition-colors group shadow-sm"
           >
-            <div className="flex items-center gap-2">
-              <span className="text-[8px] font-black text-orange-600 uppercase tracking-widest">MCQ Design</span>
-              <span className="bg-orange-600 text-white text-[6px] px-1 rounded-sm font-black">PRO</span>
-            </div>
+            <span className="text-[8px] font-black text-orange-600 uppercase tracking-widest">MCQ Design</span>
             <i className="fa-solid fa-chevron-right text-orange-400 group-hover:text-orange-600 transition-colors text-[7px]"></i>
           </button>
           <button 

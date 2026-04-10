@@ -607,20 +607,6 @@ export const exportToWord = async (
           cell.style.border = '3pt solid #000000';
           cell.style.setProperty('mso-border-alt', '3pt solid #000000');
           cell.style.fontWeight = '900';
-        } else if (instructionHeaderStyle === 25) {
-          cell.style.borderLeft = '15pt solid #1e40af';
-          cell.style.backgroundColor = '#eff6ff';
-          cell.style.color = '#1e40af';
-          cell.style.padding = '15pt';
-          cell.style.fontWeight = 'bold';
-        } else if (instructionHeaderStyle === 26) {
-          cell.style.border = '1pt solid #cbd5e1';
-          cell.style.borderBottom = '4pt solid #334155';
-          cell.style.backgroundColor = '#f8fafc';
-          cell.style.color = '#334155';
-          cell.style.textAlign = 'center';
-          cell.style.textTransform = 'uppercase';
-          cell.style.letterSpacing = '0.1em';
         } else {
           cell.style.borderBottom = '2.5pt solid #334155';
           cell.style.setProperty('mso-border-bottom-alt', '2.5pt solid #334155');
