@@ -33,9 +33,7 @@ import {
 } from './constants';
 
 // --- THE NEW FIREBASE MAGIC ---
-import { db, auth, googleProvider } from './firebase';
-import { collection, addDoc, doc, getDoc, setDoc, updateDoc, query, where, getDocs, orderBy, limit, getDocFromServer } from 'firebase/firestore';
-import { onAuthStateChanged, signInWithPopup, signOut } from 'firebase/auth';
+import { db, auth, googleProvider, collection, addDoc, doc, getDoc, setDoc, updateDoc, query, where, getDocs, orderBy, limit, getDocFromServer, onAuthStateChanged, signInWithPopup, signOut } from './firebase';
 // ------------------------------
 
 import { callNeuralEngine } from './services/neuralService';
@@ -96,7 +94,7 @@ function App() {
 
   const [authLoading, setAuthLoading] = useState(false);
 
-  const [viewMode, setViewMode] = useState<'generator' | 'preview' | 'book_creation' | 'ielts_master' | 'dpss_studio' | 'grammar_iframe' | 'khmer_program' | 'design_paper' | 'header_footer_design' | 'paper_style_design' | 'instruction_design'>('generator');
+  const [viewMode, setViewMode] = useState<'generator' | 'preview' | 'book_creation' | 'ielts_master' | 'dpss_studio' | 'grammar_iframe' | 'khmer_program' | 'design_paper' | 'header_footer_design' | 'paper_style_design' | 'instruction_design' | 'mcq_design'>('generator');
   const [isSidebarOpen, setIsSidebarOpen] = useState(true);
   const [sidebarWidth, setSidebarWidth] = useState(280);
   const [sidebarSide, setSidebarSide] = useState<'left' | 'right'>('left');
@@ -108,6 +106,30 @@ function App() {
     return () => window.removeEventListener('resize', handleResize);
   }, []);
   const [isAssistantVisible, setIsAssistantVisible] = useState(false);
+  const [neuralStatus, setNeuralStatus] = useState<'idle' | 'testing' | 'success' | 'error'>('idle');
+  const [neuralTestMessage, setNeuralTestMessage] = useState('');
+
+  const testNeuralConnection = async () => {
+    setNeuralStatus('testing');
+    try {
+      const result = await callNeuralEngine(
+        activeEngine,
+        "Say 'Neural Engine Connected' in exactly 3 words.",
+        "You are a system diagnostic tool.",
+        null,
+        externalKeys
+      );
+      if (result.text.toLowerCase().includes('connected')) {
+        setNeuralStatus('success');
+        setNeuralTestMessage("Neural Engine Handshake Successful.");
+      } else {
+        throw new Error(result.text);
+      }
+    } catch (e: any) {
+      setNeuralStatus('error');
+      setNeuralTestMessage(e.message || "Connection Failed.");
+    }
+  };
   const [activeModule, setActiveModule] = useState<string>('Grammar');
   const [activeLanguage, setActiveLanguage] = useState<string>('English');
   const [activeLevel, setActiveLevel] = useState<AcademicLevel>('Level 1');
@@ -133,6 +155,9 @@ function App() {
   const [instructionRulerStyle, setInstructionRulerStyle] = useState<number>(0); // 0: None, 1-4: S1-S4
   const [paperDesign, setPaperDesign] = useState<number>(0); // 0-10 (11 designs)
   const [instructionHeaderStyle, setInstructionHeaderStyle] = useState<number>(0); // 0: Default, 1-10: Styles
+  const [selectedDesignTemplateId, setSelectedDesignTemplateId] = useState<string | null>(null);
+  const [showAnswerKey, setShowAnswerKey] = useState(false);
+  const [isProMode, setIsProMode] = useState(false);
   const [architectTab, setArchitectTab] = useState<'Grammar' | 'Vocabulary' | 'Reading'>('Grammar');
   const [mcqLayout, setMcqLayout] = useState<'single' | 'double' | 'quad'>('single'); // A,B,C,D in 1, 2, or 4 lines
   const [mcqSpacing, setMcqSpacing] = useState<'none' | 'one'>('none'); // No space or one enter space
@@ -1000,23 +1025,47 @@ function App() {
 
     const alignments = ['left', 'center', 'right'];
     const randomAlignment = alignments[Math.floor(Math.random() * alignments.length)];
-    
-    let headerStyle = `class="header-row", text-align: ${randomAlignment}, font-weight: bold, padding: 10px`;
-    if (instructionHeaderStyle === 6) {
-      headerStyle += `, border-bottom: 4pt double #334155`;
-    } else if (instructionHeaderStyle === 11) {
-      headerStyle += `, background: linear-gradient(90deg, #1e293b, #475569), color: white`;
-    } else if (instructionHeaderStyle === 12) {
-      headerStyle += `, border: 2pt solid #10b981, color: #065f46, background-color: #ecfdf5`;
-    } else if (instructionHeaderStyle === 13) {
-      headerStyle += `, border: 3pt solid black, background-color: #facc15, color: black`;
-    } else if (instructionHeaderStyle === 14) {
-      headerStyle = `class="header-row", MANDATORY: For each PART (A, B, C, etc.), you MUST use a DIFFERENT visual style for the header row. Mix backgrounds, borders, and colors.`;
-    }
+
+    const getHeaderStyleString = (styleId: number, alignment: string) => {
+      let base = `class="header-row", text-align: ${alignment}, font-weight: bold, padding: 10px`;
+      const styles: Record<number, string> = {
+        0: "", // Default
+        1: ", background-color: #dbeafe, color: #1e3a8a, border-left: 4pt solid #1e3a8a",
+        2: ", background-color: #dcfce7, color: #064e3b, border-left: 4pt solid #064e3b",
+        3: ", background-color: #fee2e2, color: #7f1d1d, border-left: 4pt solid #7f1d1d",
+        4: ", border: 1.5pt solid #334155, text-align: center",
+        5: ", border-bottom: 2.5pt solid #334155, font-weight: 900, font-size: 14pt",
+        6: ", border-bottom: 4pt double #334155",
+        7: ", background-color: #f1f5f9, color: #1e293b, border-radius: 8px",
+        8: ", background-color: #e0e7ff, color: #3730a3, border-right: 4pt solid #3730a3",
+        9: ", background-color: #fffbeb, color: #92400e, border: 1pt dashed #92400e",
+        10: ", border-bottom: 1pt solid #e2e8f0",
+        11: ", background: linear-gradient(90deg, #1e293b, #475569), color: white",
+        12: ", border: 2pt solid #10b981, color: #065f46, background-color: #ecfdf5",
+        13: ", border: 3pt solid black, background-color: #facc15, color: black",
+        14: "MANDATORY: For each PART (A, B, C, etc.), you MUST use a DIFFERENT visual style for the header row. Mix backgrounds, borders, and colors.",
+        15: ", border-left: 10pt solid #0f172a, background-color: #f1f5f9, color: #0f172a, padding: 10px 20px",
+        16: ", border: 2pt dashed #64748b, color: #475569",
+        17: ", background: rgba(255, 255, 255, 0.4), backdrop-filter: blur(10px), border: 1pt solid rgba(255, 255, 255, 0.5), color: #1e293b, border-radius: 15px",
+        18: ", background-color: #facc15, color: black, border: 3pt solid black, box-shadow: 6pt 6pt 0 black, text-transform: uppercase, font-weight: 900",
+        19: ", background: linear-gradient(135deg, #92400e 0%, #d97706 100%), color: #fef3c7, border: 1pt solid #f59e0b, font-style: italic",
+        20: ", border-bottom: 0.5pt solid #cbd5e1, color: #94a3b8, text-align: right, font-size: 9pt",
+        21: ", background: linear-gradient(90deg, #1e293b, #475569), color: white, text-align: center, border-radius: 4px",
+        22: ", border: 2pt solid #10b981, color: #065f46, text-align: center, background-color: #ecfdf5, font-weight: 900",
+        23: ", border: 3pt solid black, background-color: #facc15, color: black, text-transform: uppercase, font-weight: 900",
+        24: ", background: repeating-linear-gradient(45deg, #f1f5f9, #f1f5f9 10px, #ffffff 10px, #ffffff 20px), border: 1pt solid #cbd5e1, text-align: center",
+        25: ", border-left: 15pt solid #1e40af, background-color: #eff6ff, color: #1e40af, padding: 15px 20px",
+        26: ", border: 1pt solid #cbd5e1, border-bottom: 4pt solid #334155, background-color: #f8fafc, color: #334155, text-align: center, text-transform: uppercase, letter-spacing: 0.1em"
+      };
+      
+      if (styleId === 14) return `class="header-row", ${styles[14]}`;
+      return base + (styles[styleId] || "");
+    };
 
     const componentLogic = selectedTemps.map((t, idx) => {
       const overrideCol = columnOverrides[t.id] !== undefined ? columnOverrides[t.id] : (t.columnCount !== undefined ? t.columnCount : 0);
       const overrideItems = itemCountOverrides[t.id] || 10;
+      const templateHeaderStyle = getHeaderStyleString(t.headerStyleId ?? instructionHeaderStyle, randomAlignment);
       
       let blueprintStr = '';
       
@@ -1055,7 +1104,7 @@ function App() {
         if (effectiveCols > 1) {
           formatInstruction = `(MANDATORY FORMAT: Use a real HTML <table> with ${effectiveCols} columns. 
             ${isPartBackgroundEnabled ? 'MANDATORY: Apply a unique background style class from the PART BACKGROUND PROTOCOL to this <table> tag.' : ''}
-            - Row 1: Header row spanning all ${effectiveCols} columns (colspan="${effectiveCols}"), with ${headerStyle}. Title: "PART ${String.fromCharCode(65 + idx)}: ${t.professionalLabel || t.label}".
+            - Row 1: Header row spanning all ${effectiveCols} columns (colspan="${effectiveCols}"), with ${templateHeaderStyle}. Title: "PART ${String.fromCharCode(65 + idx)}: ${t.professionalLabel || t.label}".
             - Row 2: Distribute the ${overrideItems} items STRICTLY EVENLY across ${effectiveCols} columns. (e.g. if 10 items, put 5 in Col 1 and 5 in Col 2).
             - MANDATORY: Every numbered item (1., 2., 3., etc.) MUST start on a NEW LINE using an HTML <p> or <br> tag. DO NOT bunch them together.
             - The table MUST have a border: 1.5pt solid #334155.
@@ -1063,7 +1112,7 @@ function App() {
         } else {
           formatInstruction = `(MANDATORY FORMAT: Use a real HTML <table> with 1 column and EXACTLY 2 rows. 
             ${isPartBackgroundEnabled ? 'MANDATORY: Apply a unique background style class from the PART BACKGROUND PROTOCOL to this <table> tag.' : ''}
-            - Row 1: Header row with ${headerStyle}. Title: "PART ${String.fromCharCode(65 + idx)}: ${t.professionalLabel || t.label}".
+            - Row 1: Header row with ${templateHeaderStyle}. Title: "PART ${String.fromCharCode(65 + idx)}: ${t.professionalLabel || t.label}".
             - Row 2: A single <td> containing ALL ${overrideItems} items. MANDATORY: Every numbered item (1., 2., 3., etc.) MUST start on a NEW LINE using an HTML <p> or <br> tag. DO NOT bunch them together in a single paragraph.
             - The table MUST have a border: 1.5pt solid #334155.
             - DO NOT put borders between the items inside the second row. This is the "Clean" layout.)`;
@@ -1073,14 +1122,14 @@ function App() {
         if (effectiveCols > 1) {
           formatInstruction = `(MANDATORY FORMAT: Use a real HTML <table> with ${effectiveCols} columns. 
             ${isPartBackgroundEnabled ? 'MANDATORY: Apply a unique background style class from the PART BACKGROUND PROTOCOL to this <table> tag.' : ''}
-            - Row 1: Header row spanning all ${effectiveCols} columns (colspan="${effectiveCols}"), with ${headerStyle}. Title: "PART ${String.fromCharCode(65 + idx)}: ${t.professionalLabel || t.label}".
+            - Row 1: Header row spanning all ${effectiveCols} columns (colspan="${effectiveCols}"), with ${templateHeaderStyle}. Title: "PART ${String.fromCharCode(65 + idx)}: ${t.professionalLabel || t.label}".
             - Subsequent rows: Distribute the ${overrideItems} items STRICTLY EVENLY across ${effectiveCols} columns.
             - Every <td> MUST have a border: 1pt solid #334155; padding: 10px;
             - This creates a lined grid with ${effectiveCols} columns.)`;
         } else {
           formatInstruction = `(MANDATORY FORMAT: Use a real HTML <table> with 1 column. 
             ${isPartBackgroundEnabled ? 'MANDATORY: Apply a unique background style class from the PART BACKGROUND PROTOCOL to this <table> tag.' : ''}
-            - Row 1: Header row with ${headerStyle}. Title: "PART ${String.fromCharCode(65 + idx)}: ${t.professionalLabel || t.label}".
+            - Row 1: Header row with ${templateHeaderStyle}. Title: "PART ${String.fromCharCode(65 + idx)}: ${t.professionalLabel || t.label}".
             - Subsequent rows: Each row contains EXACTLY ONE item.
             - Every <td> MUST have a border: 1pt solid #334155; padding: 10px;
             - This creates lines between every question.)`;
@@ -1089,7 +1138,7 @@ function App() {
         // Option 3 (Grid): 2 columns, multiple rows (Header + Items distributed)
         formatInstruction = `(MANDATORY FORMAT: Use a real HTML <table> with ${effectiveCols} columns. 
             ${isPartBackgroundEnabled ? 'MANDATORY: Apply a unique background style class from the PART BACKGROUND PROTOCOL to this <table> tag.' : ''}
-            - Row 1: Header row spanning all ${effectiveCols} columns (colspan="${effectiveCols}"), with ${headerStyle}. Title: "PART ${String.fromCharCode(65 + idx)}: ${t.professionalLabel || t.label}".
+            - Row 1: Header row spanning all ${effectiveCols} columns (colspan="${effectiveCols}"), with ${templateHeaderStyle}. Title: "PART ${String.fromCharCode(65 + idx)}: ${t.professionalLabel || t.label}".
             - Subsequent rows: Distribute the ${overrideItems} items STRICTLY EVENLY across ${effectiveCols} columns (one item per cell).
             - Every <td> MUST have a border: 1pt solid #334155; padding: 10px; vertical-align: top;
             - This creates a professional worksheet grid with ${effectiveCols} columns.)`;
@@ -1097,7 +1146,7 @@ function App() {
         // Option 4 (Vertical Ruler Middle): 2 columns with a middle ruler
         formatInstruction = `(MANDATORY FORMAT: Use a real HTML <table> with 2 columns. 
             ${isPartBackgroundEnabled ? 'MANDATORY: Apply a unique background style class from the PART BACKGROUND PROTOCOL to this <table> tag.' : ''}
-            - Row 1: Header row spanning both columns (colspan="2"), with ${headerStyle}. Title: "PART ${String.fromCharCode(65 + idx)}: ${t.professionalLabel || t.label}".
+            - Row 1: Header row spanning both columns (colspan="2"), with ${templateHeaderStyle}. Title: "PART ${String.fromCharCode(65 + idx)}: ${t.professionalLabel || t.label}".
             - Subsequent rows: Distribute the ${overrideItems} items STRICTLY EVENLY across 2 columns.
             - MANDATORY: The <table> MUST have a class="ruler-table". 
             - The middle border between columns MUST be a solid 1.5pt line (the "ruler").
@@ -1106,7 +1155,7 @@ function App() {
       } else if (baseLayout === 4) {
         // Option 5 (Rulers Left): 2 columns, 1 row (Header) + N rows (Items)
         formatInstruction = `(MANDATORY FORMAT: Use a real HTML <table> with 2 columns. 
-          - Row 1: Header row spanning both columns (colspan="2"), with ${headerStyle}. Title: "PART ${String.fromCharCode(65 + idx)}: ${t.professionalLabel || t.label}".
+          - Row 1: Header row spanning both columns (colspan="2"), with ${templateHeaderStyle}. Title: "PART ${String.fromCharCode(65 + idx)}: ${t.professionalLabel || t.label}".
           - Subsequent Rows: Each row MUST have EXACTLY 2 cells (<td>). 
           - Cell 1: The Question Number and Instruction (e.g. "1. Choose the correct answer:").
           - Cell 2: The actual question content or MCQ options.
@@ -1116,7 +1165,7 @@ function App() {
       } else if (baseLayout >= 5) {
         // Options 6-9 (S1-S4): Similar to Clean but with different background lines
         formatInstruction = `(MANDATORY FORMAT: Use a real HTML <table> with 1 column and EXACTLY 2 rows. 
-          - Row 1: Header row with ${headerStyle}. Title: "PART ${String.fromCharCode(65 + idx)}: ${t.professionalLabel || t.label}".
+          - Row 1: Header row with ${templateHeaderStyle}. Title: "PART ${String.fromCharCode(65 + idx)}: ${t.professionalLabel || t.label}".
           - Row 2: A single <td> containing ALL ${overrideItems} items. MANDATORY: Every numbered item (1., 2., 3., etc.) MUST start on a NEW LINE using an HTML <p> or <br> tag.
           - The table MUST have a border: 1.5pt solid #334155.
           - This is a "Lined" layout with special background lines.)`;
@@ -1532,6 +1581,7 @@ ${componentLogic}
             onDesignPaperClick={() => setViewMode('design_paper')}
             onPaperStyleClick={() => setViewMode('paper_style_design')}
             onInstructionDesignClick={() => setViewMode('instruction_design')}
+            onMcqDesignClick={() => setViewMode('mcq_design')}
             onHeaderFooterDesignClick={() => setViewMode('header_footer_design')}
             mcqStyle={mcqStyle}
             onMcqStyleChange={setMcqStyle}
@@ -1543,6 +1593,12 @@ ${componentLogic}
             onMcqSpacingChange={setMcqSpacing}
             instructionCase={instructionCase}
             onInstructionCaseChange={setInstructionCase}
+            difficulty="medium"
+            onDifficultyChange={() => {}}
+            showAnswerKey={showAnswerKey}
+            onShowAnswerKeyChange={setShowAnswerKey}
+            isProMode={isProMode}
+            onProModeChange={setIsProMode}
             width={sidebarWidth}
             onWidthChange={setSidebarWidth}
             side={sidebarSide}
@@ -1581,6 +1637,50 @@ ${componentLogic}
                 )}
                 
                 <div className="flex items-center gap-4">
+                  <div className="flex flex-col items-end">
+                    <div className="flex items-center gap-2">
+                      <div className={`h-2 w-2 rounded-full ${isFirebaseConnected ? 'bg-emerald-500 animate-pulse' : 'bg-rose-500'}`}></div>
+                      <span className="text-[9px] font-black text-slate-700 uppercase tracking-widest">
+                        {isFirebaseConnected ? 'Cloud Sync Active' : 'Offline Mode'}
+                      </span>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <div className={`h-2 w-2 rounded-full ${
+                        neuralStatus === 'success' ? 'bg-emerald-500' : 
+                        neuralStatus === 'error' ? 'bg-rose-500' : 
+                        neuralStatus === 'testing' ? 'bg-amber-500 animate-pulse' : 
+                        'bg-slate-400'
+                      }`}></div>
+                      <span className="text-[9px] font-black text-slate-400 uppercase tracking-widest">
+                        {neuralStatus === 'success' ? 'Neural Handshake OK' : 
+                         neuralStatus === 'error' ? 'Neural Handshake Failed' : 
+                         neuralStatus === 'testing' ? 'Neural Testing...' : 
+                         'Neural Engine Ready'}
+                      </span>
+                    </div>
+                  </div>
+
+                  {generationError && (
+                    <div className="absolute top-24 left-1/2 -translate-x-1/2 bg-rose-50 border border-rose-200 p-4 rounded-2xl shadow-xl z-[150] flex items-center gap-4 animate-in slide-in-from-top duration-300">
+                      <div className="h-10 w-10 bg-rose-100 text-rose-600 rounded-xl flex items-center justify-center">
+                        <i className="fa-solid fa-triangle-exclamation"></i>
+                      </div>
+                      <div>
+                        <p className="text-[10px] font-black text-rose-900 uppercase tracking-tight">Neural Synthesis Error</p>
+                        <p className="text-[9px] text-rose-600 font-bold uppercase max-w-[300px] truncate">{generationError}</p>
+                      </div>
+                      <button 
+                        onClick={() => { setGenerationError(null); handleGenerate(); }}
+                        className="px-4 py-2 bg-rose-600 text-white rounded-lg text-[9px] font-black uppercase tracking-widest hover:bg-rose-700 transition-all"
+                      >
+                        Retry
+                      </button>
+                      <button onClick={() => setGenerationError(null)} className="text-rose-400 hover:text-rose-600">
+                        <i className="fa-solid fa-xmark"></i>
+                      </button>
+                    </div>
+                  )}
+
                   <button 
                     onClick={handleGenerate}
                     disabled={isGenerating}
@@ -2227,6 +2327,10 @@ ${componentLogic}
                     { id: 17, name: 'Option 18: Notebook', desc: 'Classic spiral notebook style.', icon: 'fa-book-open' },
                     { id: 18, name: 'Option 19: Vintage', desc: 'Aged parchment style.', icon: 'fa-scroll' },
                     { id: 19, name: 'Option 20: Modern', desc: 'Geometric modern art style.', icon: 'fa-shapes' },
+                    { id: 20, name: 'Option 21: Academic', desc: 'Formal academic journal layout.', icon: 'fa-graduation-cap' },
+                    { id: 21, name: 'Option 22: Official', desc: 'Strict official exam format.', icon: 'fa-stamp' },
+                    { id: 22, name: 'Option 23: Blueprint', desc: 'Technical blueprint aesthetic.', icon: 'fa-drafting-pencil' },
+                    { id: 23, name: 'Option 24: Minimalist', desc: 'Ultra-clean professional look.', icon: 'fa-minus' },
                   ].map((style) => (
                     <div 
                       key={style.id}
@@ -2288,7 +2392,11 @@ ${componentLogic}
                       globalLayout === 16 ? 'layout-galaxy' :
                       globalLayout === 17 ? 'layout-notebook' :
                       globalLayout === 18 ? 'layout-vintage' :
-                      globalLayout === 19 ? 'layout-modern' : ''
+                      globalLayout === 19 ? 'layout-modern' : 
+                      globalLayout === 20 ? 'layout-academic' :
+                      globalLayout === 21 ? 'layout-official' :
+                      globalLayout === 22 ? 'layout-blueprint' :
+                      globalLayout === 23 ? 'layout-minimalist' : ''
                     }`} style={{ transform: 'scale(0.9)' }}>
                       <div className="p-12 space-y-8">
                         <div className="h-6 w-3/4 bg-slate-200 rounded-full"></div>
@@ -2358,8 +2466,30 @@ ${componentLogic}
             <div className="max-w-4xl mx-auto space-y-10">
               <div className="bg-white rounded-[32px] p-10 border border-slate-100 shadow-sm">
                 <h3 className="text-xl font-black text-slate-900 mb-2 uppercase tracking-tight">Instruction Header Architect</h3>
-                <p className="text-sm text-slate-500 mb-8">Choose a style for the "PART A: ..." instruction headers.</p>
+                <p className="text-sm text-slate-500 mb-8">Select a part to customize its unique header style, or set the global default.</p>
                 
+                {/* Part Selector */}
+                <div className="mb-10">
+                  <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-2 mb-4 block">Select Part to Customize</label>
+                  <div className="flex flex-wrap gap-2">
+                    <button 
+                      onClick={() => setSelectedDesignTemplateId(null)}
+                      className={`px-6 py-3 rounded-2xl text-[10px] font-black uppercase tracking-widest transition-all ${!selectedDesignTemplateId ? 'bg-rose-600 text-white shadow-lg' : 'bg-slate-100 text-slate-400 hover:bg-slate-200'}`}
+                    >
+                      Global Default
+                    </button>
+                    {instructionTemplates.filter(t => selectedInstructionIds.includes(t.id)).map(t => (
+                      <button 
+                        key={t.id}
+                        onClick={() => setSelectedDesignTemplateId(t.id)}
+                        className={`px-6 py-3 rounded-2xl text-[10px] font-black uppercase tracking-widest transition-all ${selectedDesignTemplateId === t.id ? 'bg-rose-600 text-white shadow-lg' : 'bg-slate-100 text-slate-400 hover:bg-slate-200'}`}
+                      >
+                        {t.label}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                   {[
                     { id: 0, name: 'Classic Dark', style: { backgroundColor: '#334155', color: 'white', padding: '10px', fontWeight: 'bold', textAlign: 'center' } },
@@ -2373,23 +2503,141 @@ ${componentLogic}
                     { id: 8, name: 'Indigo Accent', style: { backgroundColor: '#e0e7ff', color: '#3730a3', padding: '10px', fontWeight: 'bold', borderRight: '4pt solid #3730a3' } },
                     { id: 9, name: 'Amber Box', style: { backgroundColor: '#fffbeb', color: '#92400e', padding: '10px', fontWeight: 'bold', border: '1pt dashed #92400e' } },
                     { id: 10, name: 'Clean Transparent', style: { color: '#334155', padding: '10px 0', fontWeight: 'bold', borderBottom: '1pt solid #e2e8f0' } },
-                    { id: 11, name: 'Gradient Night', style: { background: 'linear-gradient(90deg, #1e293b, #475569)', color: 'white', padding: '12px', fontWeight: 'bold', textAlign: 'center', borderRadius: '4px' } },
-                    { id: 12, name: 'Neon Emerald', style: { border: '2pt solid #10b981', color: '#065f46', padding: '10px', fontWeight: '900', textAlign: 'center', backgroundColor: '#ecfdf5' } },
-                    { id: 13, name: 'Brutalist Yellow', style: { border: '3pt solid black', backgroundColor: '#facc15', color: 'black', padding: '10px', fontWeight: '900', textTransform: 'uppercase' } },
-                    { id: 14, name: 'Mix Styles', style: { background: 'repeating-linear-gradient(45deg, #f1f5f9, #f1f5f9 10px, #ffffff 10px, #ffffff 20px)', border: '1pt solid #cbd5e1', color: '#334155', padding: '10px', fontWeight: 'bold', textAlign: 'center' } }
+                    { id: 11, name: 'Green Double', style: { borderBottom: '4pt double #059669', color: '#059669', padding: '10px 0', fontWeight: 'bold' } },
+                    { id: 12, name: 'Dotted Blue', style: { border: '1.5pt dotted #2563eb', color: '#1e40af', padding: '10px', fontWeight: 'bold', backgroundColor: '#eff6ff', borderRadius: '4px' } },
+                    { id: 13, name: 'Thick Red Line', style: { borderBottom: '6pt solid #dc2626', color: '#991b1b', padding: '10px 0', fontWeight: '900' } },
+                    { id: 14, name: 'Neon Gradient', style: { background: 'linear-gradient(90deg, #7c3aed, #db2777)', color: 'white', padding: '12px', fontWeight: 'bold', textAlign: 'center', borderRadius: '12px', boxShadow: '0 4px 15px rgba(124, 58, 237, 0.3)' } },
+                    { id: 15, name: 'Modern Pillar', style: { borderLeft: '10pt solid #0f172a', backgroundColor: '#f1f5f9', color: '#0f172a', padding: '10px 20px', fontWeight: 'bold' } },
+                    { id: 16, name: 'Dashed Slate', style: { border: '2pt dashed #64748b', color: '#475569', padding: '10px', fontWeight: 'bold' } },
+                    { id: 17, name: 'Glassmorphism', style: { background: 'rgba(255, 255, 255, 0.4)', backdropFilter: 'blur(10px)', border: '1pt solid rgba(255, 255, 255, 0.5)', color: '#1e293b', padding: '10px', fontWeight: 'bold', borderRadius: '15px' } },
+                    { id: 18, name: 'Brutalist Pop', style: { backgroundColor: '#facc15', color: 'black', border: '3pt solid black', boxShadow: '6pt 6pt 0 black', padding: '10px', fontWeight: '900', textTransform: 'uppercase' } },
+                    { id: 19, name: 'Elegant Gold', style: { background: 'linear-gradient(135deg, #92400e 0%, #d97706 100%)', color: '#fef3c7', padding: '10px', fontWeight: 'bold', border: '1pt solid #f59e0b', fontStyle: 'italic' } },
+                    { id: 20, name: 'Minimalist Gray', style: { borderBottom: '0.5pt solid #cbd5e1', color: '#94a3b8', padding: '5px 0', fontWeight: 'bold', textAlign: 'right', fontSize: '9pt' } },
+                    { id: 21, name: 'Gradient Night', style: { background: 'linear-gradient(90deg, #1e293b, #475569)', color: 'white', padding: '12px', fontWeight: 'bold', textAlign: 'center', borderRadius: '4px' } },
+                    { id: 22, name: 'Neon Emerald', style: { border: '2pt solid #10b981', color: '#065f46', padding: '10px', fontWeight: '900', textAlign: 'center', backgroundColor: '#ecfdf5' } },
+                    { id: 23, name: 'Brutalist Yellow', style: { border: '3pt solid black', backgroundColor: '#facc15', color: 'black', padding: '10px', fontWeight: '900', textTransform: 'uppercase' } },
+                    { id: 25, name: 'Academic Pillar', style: { borderLeft: '15pt solid #1e40af', backgroundColor: '#eff6ff', color: '#1e40af', padding: '15px 20px', fontWeight: 'bold' } },
+                    { id: 26, name: 'Professional Center', style: { border: '1pt solid #cbd5e1', borderBottom: '4pt solid #334155', backgroundColor: '#f8fafc', color: '#334155', textAlign: 'center', textTransform: 'uppercase', letterSpacing: '0.1em', padding: '12px' } },
+                    { id: 24, name: 'Mix Styles', style: { background: 'repeating-linear-gradient(45deg, #f1f5f9, #f1f5f9 10px, #ffffff 10px, #ffffff 20px)', border: '1pt solid #cbd5e1', color: '#334155', padding: '10px', fontWeight: 'bold', textAlign: 'center' } }
+                  ].map((style) => {
+                    const currentStyleId = selectedDesignTemplateId 
+                      ? instructionTemplates.find(t => t.id === selectedDesignTemplateId)?.headerStyleId ?? instructionHeaderStyle
+                      : instructionHeaderStyle;
+                    
+                    return (
+                      <div 
+                        key={style.id}
+                        onClick={() => {
+                          if (selectedDesignTemplateId) {
+                            updateTemplate(selectedDesignTemplateId, { headerStyleId: style.id });
+                          } else {
+                            setInstructionHeaderStyle(style.id);
+                          }
+                        }}
+                        className={`p-6 rounded-2xl border-2 cursor-pointer transition-all ${currentStyleId === style.id ? 'border-rose-500 bg-rose-50/30 shadow-md' : 'border-slate-200 hover:border-rose-300 bg-white'}`}
+                      >
+                        <div className="flex justify-between items-center mb-4">
+                          <h5 className="font-bold text-slate-700">{style.name}</h5>
+                          {currentStyleId === style.id && <div className="h-6 w-6 bg-rose-500 text-white rounded-full flex items-center justify-center text-xs"><i className="fa-solid fa-check"></i></div>}
+                        </div>
+                        <div className="bg-white p-4 border border-slate-100 rounded-xl">
+                          <div style={style.style as any}>{selectedDesignTemplateId ? instructionTemplates.find(t => t.id === selectedDesignTemplateId)?.label : 'PART A: CHOOSE THE BEST OPTION'}</div>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+            </div>
+          </div>
+        </section>
+      )}
+
+      {viewMode === 'mcq_design' && (
+        <section 
+          style={{ 
+            marginLeft: isSidebarOpen && sidebarSide === 'left' ? (windowWidth >= 1024 ? `${sidebarWidth}px` : '0px') : '0px',
+            marginRight: isSidebarOpen && sidebarSide === 'right' ? (windowWidth >= 1024 ? `${sidebarWidth}px` : '0px') : '0px'
+          }}
+          className="flex-1 flex flex-col overflow-hidden animate-in fade-in duration-500 bg-slate-50 transition-all duration-300"
+        >
+          <div className="p-4 lg:p-6 bg-white border-b border-slate-200 flex flex-wrap gap-4 justify-between items-center z-10 no-print shadow-sm">
+            <button onClick={() => setViewMode('generator')} className="border border-slate-200 text-slate-600 px-6 lg:px-8 py-3 rounded-xl text-[11px] font-bold uppercase tracking-widest hover:bg-slate-50 flex items-center gap-4 group transition-all">
+              <i className="fa-solid fa-arrow-left group-hover:-translate-x-1 transition-transform"></i> WORKSPACE
+            </button>
+            <div className="flex-1 text-center">
+              <h2 className="text-slate-800 font-bold uppercase tracking-widest text-[12px]">MCQ Design Architect</h2>
+            </div>
+            <div className="flex gap-2">
+              <button 
+                onClick={handleSetDefaultMcqStyle}
+                className="px-6 py-3 bg-white border border-slate-200 text-slate-600 rounded-xl text-[11px] font-bold uppercase tracking-widest hover:bg-slate-50 shadow-sm flex items-center gap-2 transition-all"
+              >
+                <i className="fa-solid fa-star"></i> Set Default
+              </button>
+              <button 
+                onClick={() => setViewMode('generator')}
+                className="px-6 py-3 bg-orange-600 text-white rounded-xl text-[11px] font-bold uppercase tracking-widest hover:bg-orange-700 shadow-sm flex items-center gap-2 transition-all"
+              >
+                <i className="fa-solid fa-check"></i> Save & Apply
+              </button>
+            </div>
+          </div>
+          <div className="flex-1 bg-slate-50 overflow-y-auto p-8 no-scrollbar">
+            <div className="max-w-5xl mx-auto space-y-10">
+              <div className="bg-white rounded-[32px] p-10 border border-slate-100 shadow-sm">
+                <div className="flex items-center gap-4 mb-2">
+                  <div className="h-12 w-12 bg-orange-100 text-orange-600 rounded-2xl flex items-center justify-center text-xl">
+                    <i className="fa-solid fa-list-ol"></i>
+                  </div>
+                  <div>
+                    <h3 className="text-xl font-black text-slate-900 uppercase tracking-tight">MCQ Style Architect</h3>
+                    <p className="text-sm text-slate-500">Choose how your multiple choice letters (A, B, C, D) appear on the paper.</p>
+                  </div>
+                </div>
+                
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mt-10">
+                  {[
+                    { id: 0, name: 'None', icon: 'fa-font', desc: 'Standard plain text' },
+                    { id: 1, name: 'Round Badge', icon: 'fa-circle-dot', desc: 'Inherits color from paper design' },
+                    { id: 2, name: 'Boxed', icon: 'fa-square', desc: 'Clean slate border box' },
+                    { id: 3, name: 'Parentheses', icon: 'fa-brackets-round', desc: '(A) (B) (C) (D)' },
+                    { id: 4, name: 'Underlined', icon: 'fa-underline', desc: 'Elegant underline' },
+                    { id: 5, name: 'Bold Impact', icon: 'fa-bold', desc: 'Extra thick and large' },
+                    { id: 6, name: 'Shadow Box', icon: 'fa-layer-group', desc: 'Modern 3D shadow effect' },
+                    { id: 7, name: 'Double Circle', icon: 'fa-circle-nodes', desc: 'Sophisticated double border' },
+                    { id: 8, name: 'Neon Glow', icon: 'fa-bolt', desc: 'Green neon terminal style' },
+                    { id: 9, name: 'Brutalist', icon: 'fa-cube', desc: 'Bold yellow offset style' },
+                    { id: 10, name: 'Soft Glow', icon: 'fa-sun', desc: 'Pink ethereal glow' },
+                    { id: 11, name: 'Diamond', icon: 'fa-diamond', desc: 'Rotated 45 degree box' },
+                    { id: 12, name: 'Hexagon', icon: 'fa-hexagon', desc: 'Geometric honeycomb shape' },
+                    { id: 13, name: 'Badge', icon: 'fa-id-badge', desc: 'Hanging slate badge' },
+                    { id: 14, name: 'Minimalist Dot', icon: 'fa-ellipsis', desc: 'A • B • C • D' },
+                    { id: 15, name: 'Gradient', icon: 'fa-palette', desc: 'Vibrant purple gradient' }
                   ].map((style) => (
                     <div 
                       key={style.id}
-                      onClick={() => setInstructionHeaderStyle(style.id)}
-                      className={`p-6 rounded-2xl border-2 cursor-pointer transition-all ${instructionHeaderStyle === style.id ? 'border-rose-500 bg-rose-50/30 shadow-md' : 'border-slate-200 hover:border-rose-300 bg-white'}`}
+                      onClick={() => setMcqStyle(style.id)}
+                      className={`p-6 rounded-2xl border-2 cursor-pointer transition-all ${mcqStyle === style.id ? 'border-orange-500 bg-orange-50/30 shadow-md' : 'border-slate-200 hover:border-orange-300 bg-white'}`}
                     >
                       <div className="flex justify-between items-center mb-4">
-                        <h5 className="font-bold text-slate-700">{style.name}</h5>
-                        {instructionHeaderStyle === style.id && <div className="h-6 w-6 bg-rose-500 text-white rounded-full flex items-center justify-center text-xs"><i className="fa-solid fa-check"></i></div>}
+                        <div className="flex items-center gap-3">
+                          <i className={`fa-solid ${style.icon} text-slate-400`}></i>
+                          <h5 className="font-bold text-slate-700">{style.name}</h5>
+                        </div>
+                        {mcqStyle === style.id && <div className="h-6 w-6 bg-orange-500 text-white rounded-full flex items-center justify-center text-xs"><i className="fa-solid fa-check"></i></div>}
                       </div>
-                      <div className="bg-white p-4 border border-slate-100 rounded-xl">
-                        <div style={style.style as any}>PART A: CHOOSE THE BEST OPTION</div>
+                      <div className="bg-slate-50 p-4 rounded-xl mb-3">
+                        <div className="flex gap-4 items-center justify-center">
+                          {['A', 'B', 'C', 'D'].map(letter => (
+                            <div key={letter} className="flex items-center gap-2">
+                              <span className="font-bold text-slate-400 text-[10px]">{letter}</span>
+                              <div className="h-4 w-12 bg-slate-200 rounded-full"></div>
+                            </div>
+                          ))}
+                        </div>
                       </div>
+                      <p className="text-[10px] text-slate-400 italic">{style.desc}</p>
                     </div>
                   ))}
                 </div>
@@ -2412,7 +2660,7 @@ ${componentLogic}
               <i className="fa-solid fa-arrow-left group-hover:-translate-x-1 transition-transform"></i> WORKSPACE
             </button>
             <div className="flex-1 text-center">
-              <h2 className="text-slate-800 font-bold uppercase tracking-widest text-[12px]">Design Paper Test Workspace</h2>
+              <h2 className="text-slate-800 font-bold uppercase tracking-widest text-[12px]">Designing Test Workspace</h2>
             </div>
             <div className="flex gap-2">
               <button 
@@ -2426,7 +2674,7 @@ ${componentLogic}
           <div className="flex-1 bg-slate-50 overflow-y-auto p-8 no-scrollbar">
             <div className="max-w-4xl mx-auto space-y-10">
               <div className="bg-white rounded-[32px] p-10 border border-slate-100 shadow-sm">
-                <h3 className="text-xl font-black text-slate-900 mb-2 uppercase tracking-tight">Paper Test Architect</h3>
+                <h3 className="text-xl font-black text-slate-900 mb-2 uppercase tracking-tight">Designing Test Architect</h3>
                 <p className="text-sm text-slate-500 mb-8">Customize the visual structure and default formatting for each question type.</p>
                 
                 <div className="flex gap-2 mb-10 border-b border-slate-200 pb-4">
@@ -2443,122 +2691,202 @@ ${componentLogic}
 
                 <div className="space-y-12">
                   {architectTab === 'Grammar' && (
-                    <>
+                    <div className="space-y-12">
                       {/* MCQ Design Samples */}
-                  <div className="space-y-6">
-                    <div className="flex items-center gap-3 mb-6">
-                      <div className="h-10 w-10 bg-orange-100 text-orange-600 rounded-xl flex items-center justify-center">
-                        <i className="fa-solid fa-list-check"></i>
-                      </div>
-                      <h4 className="text-lg font-bold text-slate-800 uppercase tracking-widest">Multiple Choice Designs</h4>
-                    </div>
-                    
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                      {/* MCQ Design 1 */}
-                      <div 
-                        onClick={() => setPaperStyles(prev => ({ ...prev, mcq: 0 }))}
-                        className={`p-6 rounded-2xl border-2 cursor-pointer transition-all ${paperStyles.mcq === 0 ? 'border-orange-500 bg-orange-50/30 shadow-md' : 'border-slate-200 hover:border-orange-300 bg-white'}`}
-                      >
-                        <div className="flex justify-between items-center mb-4">
-                          <h5 className="font-bold text-slate-700">Design 1: Standard A, B, C, D</h5>
-                          {paperStyles.mcq === 0 && <div className="h-6 w-6 bg-orange-500 text-white rounded-full flex items-center justify-center text-xs"><i className="fa-solid fa-check"></i></div>}
+                      <div className="space-y-6">
+                        <div className="flex items-center gap-3 mb-6">
+                          <div className="h-10 w-10 bg-orange-100 text-orange-600 rounded-xl flex items-center justify-center">
+                            <i className="fa-solid fa-list-check"></i>
+                          </div>
+                          <h4 className="text-lg font-bold text-slate-800 uppercase tracking-widest">Multiple Choice Designs</h4>
                         </div>
-                        <div className="bg-white p-4 border border-slate-200 rounded-xl font-serif text-sm">
-                          <div className="mb-4">
-                            <div>1. What is the capital of France?</div>
-                            <div className="flex gap-6 mt-1 ml-4 text-slate-700"><span>A. London</span><span>B. Paris</span><span>C. Berlin</span><span>D. Rome</span></div>
-                          </div>
-                          <div className="mb-4">
-                            <div>2. Which planet is known as the Red Planet?</div>
-                            <div className="flex gap-6 mt-1 ml-4 text-slate-700"><span>A. Venus</span><span>B. Mars</span><span>C. Jupiter</span><span>D. Saturn</span></div>
-                          </div>
-                          <div>
-                            <div>3. Who wrote "Romeo and Juliet"?</div>
-                            <div className="flex gap-6 mt-1 ml-4 text-slate-700"><span>A. Dickens</span><span>B. Austen</span><span>C. Shakespeare</span><span>D. Twain</span></div>
-                          </div>
-                        </div>
-                      </div>
-
-                      {/* MCQ Design 2 */}
-                      <div 
-                        onClick={() => setPaperStyles(prev => ({ ...prev, mcq: 1 }))}
-                        className={`p-6 rounded-2xl border-2 cursor-pointer transition-all ${paperStyles.mcq === 1 ? 'border-orange-500 bg-orange-50/30 shadow-md' : 'border-slate-200 hover:border-orange-300 bg-white'}`}
-                      >
-                        <div className="flex justify-between items-center mb-4">
-                          <h5 className="font-bold text-slate-700">Design 2: Underscore Prefix</h5>
-                          {paperStyles.mcq === 1 && <div className="h-6 w-6 bg-orange-500 text-white rounded-full flex items-center justify-center text-xs"><i className="fa-solid fa-check"></i></div>}
-                        </div>
-                        <div className="bg-white p-4 border border-slate-200 rounded-xl font-serif text-sm">
-                          <div className="mb-4">
-                            <div><span className="text-red-500 font-bold">B</span><span className="text-slate-800 font-bold">_</span> 1. This holiday was used by activists to plan the protests.</div>
-                            <div className="flex gap-6 mt-1 ml-8 text-slate-700"><span>A. Wael Ghonim</span><span>B. National Police Day</span><span>C. SCAF</span></div>
-                          </div>
-                          <div className="mb-4">
-                            <div><span className="text-red-500 font-bold">C</span><span className="text-slate-800 font-bold">_</span> 2. This was the main political party prior to the revolution.</div>
-                            <div className="flex gap-6 mt-1 ml-8 text-slate-700"><span>A. National Police Day</span><span>B. Mohamed ElBaradei</span><span>C. National Democratic Party</span></div>
-                          </div>
-                          <div>
-                            <div><span className="text-red-500 font-bold">C</span><span className="text-slate-800 font-bold">_</span> 3. After thirty years, he was ousted as President of Egypt.</div>
-                            <div className="flex gap-6 mt-1 ml-8 text-slate-700"><span>A. SCAF</span><span>B. Maspiro</span><span>C. Hosni Mubarak</span></div>
-                          </div>
-                        </div>
-                      </div>
-
-                      {/* MCQ Design 3 */}
-                      <div 
-                        onClick={() => setPaperStyles(prev => ({ ...prev, mcq: 2 }))}
-                        className={`p-6 rounded-2xl border-2 cursor-pointer transition-all ${paperStyles.mcq === 2 ? 'border-orange-500 bg-orange-50/30 shadow-md' : 'border-slate-200 hover:border-orange-300 bg-white'}`}
-                      >
-                        <div className="flex justify-between items-center mb-4">
-                          <h5 className="font-bold text-slate-700">Design 3: Boxed Letters</h5>
-                          {paperStyles.mcq === 2 && <div className="h-6 w-6 bg-orange-500 text-white rounded-full flex items-center justify-center text-xs"><i className="fa-solid fa-check"></i></div>}
-                        </div>
-                        <div className="bg-white p-4 border border-slate-200 rounded-xl font-serif text-sm">
-                          <div className="mb-4">
-                            <div>1. What is the capital of France?</div>
-                            <div className="flex gap-6 mt-1 ml-4 text-slate-700"><span>[A] London</span><span>[B] Paris</span><span>[C] Berlin</span><span>[D] Rome</span></div>
-                          </div>
-                          <div className="mb-4">
-                            <div>2. Which planet is known as the Red Planet?</div>
-                            <div className="flex gap-6 mt-1 ml-4 text-slate-700"><span>[A] Venus</span><span>[B] Mars</span><span>[C] Jupiter</span><span>[D] Saturn</span></div>
-                          </div>
-                          <div>
-                            <div>3. Who wrote "Romeo and Juliet"?</div>
-                            <div className="flex gap-6 mt-1 ml-4 text-slate-700"><span>[A] Dickens</span><span>[B] Austen</span><span>[C] Shakespeare</span><span>[D] Twain</span></div>
-                          </div>
-                        </div>
-                      </div>
-
-                      {/* MCQ Design 4 */}
-                      <div 
-                        onClick={() => setPaperStyles(prev => ({ ...prev, mcq: 3 }))}
-                        className={`p-6 rounded-2xl border-2 cursor-pointer transition-all ${paperStyles.mcq === 3 ? 'border-orange-500 bg-orange-50/30 shadow-md' : 'border-slate-200 hover:border-orange-300 bg-white'}`}
-                      >
-                        <div className="flex justify-between items-center mb-4">
-                          <h5 className="font-bold text-slate-700">Design 4: Circled Letters (Subtle)</h5>
-                          {paperStyles.mcq === 3 && <div className="h-6 w-6 bg-orange-500 text-white rounded-full flex items-center justify-center text-xs"><i className="fa-solid fa-check"></i></div>}
-                        </div>
-                        <div className="bg-white p-4 border border-slate-200 rounded-xl font-serif text-sm">
-                          <div className="mb-4">
-                            <div>1. What is the capital of France?</div>
-                            <div className="flex gap-6 mt-1 ml-4 text-slate-700">
-                              <span className="flex items-center gap-1"><span className="w-5 h-5 rounded-full border border-slate-300 flex items-center justify-center text-[10px] font-bold">A</span> London</span>
-                              <span className="flex items-center gap-1"><span className="w-5 h-5 rounded-full border border-slate-300 flex items-center justify-center text-[10px] font-bold">B</span> Paris</span>
-                              <span className="flex items-center gap-1"><span className="w-5 h-5 rounded-full border border-slate-300 flex items-center justify-center text-[10px] font-bold">C</span> Berlin</span>
+                        
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                          {/* MCQ Design 1 */}
+                          <div 
+                            onClick={() => setPaperStyles(prev => ({ ...prev, mcq: 0 }))}
+                            className={`p-6 rounded-2xl border-2 cursor-pointer transition-all ${paperStyles.mcq === 0 ? 'border-orange-500 bg-orange-50/30 shadow-md' : 'border-slate-200 hover:border-orange-300 bg-white'}`}
+                          >
+                            <div className="flex justify-between items-center mb-4">
+                              <h5 className="font-bold text-slate-700">Design 1: Standard A, B, C, D</h5>
+                              {paperStyles.mcq === 0 && <div className="h-6 w-6 bg-orange-500 text-white rounded-full flex items-center justify-center text-xs"><i className="fa-solid fa-check"></i></div>}
+                            </div>
+                            <div className="bg-white p-4 border border-slate-200 rounded-xl font-serif text-sm">
+                              <div className="mb-4">
+                                <div>1. What is the capital of France?</div>
+                                <div className="flex gap-6 mt-1 ml-4 text-slate-700"><span>A. London</span><span>B. Paris</span><span>C. Berlin</span><span>D. Rome</span></div>
+                              </div>
                             </div>
                           </div>
-                          <div className="mb-4">
-                            <div>2. Which planet is known as the Red Planet?</div>
-                            <div className="flex gap-6 mt-1 ml-4 text-slate-700">
-                              <span className="flex items-center gap-1"><span className="w-5 h-5 rounded-full border border-slate-300 flex items-center justify-center text-[10px] font-bold">A</span> Venus</span>
-                              <span className="flex items-center gap-1"><span className="w-5 h-5 rounded-full border border-slate-300 flex items-center justify-center text-[10px] font-bold">B</span> Mars</span>
-                              <span className="flex items-center gap-1"><span className="w-5 h-5 rounded-full border border-slate-300 flex items-center justify-center text-[10px] font-bold">C</span> Jupiter</span>
+
+                          {/* MCQ Design 2 */}
+                          <div 
+                            onClick={() => setPaperStyles(prev => ({ ...prev, mcq: 1 }))}
+                            className={`p-6 rounded-2xl border-2 cursor-pointer transition-all ${paperStyles.mcq === 1 ? 'border-orange-500 bg-orange-50/30 shadow-md' : 'border-slate-200 hover:border-orange-300 bg-white'}`}
+                          >
+                            <div className="flex justify-between items-center mb-4">
+                              <h5 className="font-bold text-slate-700">Design 2: Underscore Prefix</h5>
+                              {paperStyles.mcq === 1 && <div className="h-6 w-6 bg-orange-500 text-white rounded-full flex items-center justify-center text-xs"><i className="fa-solid fa-check"></i></div>}
+                            </div>
+                            <div className="bg-white p-4 border border-slate-200 rounded-xl font-serif text-sm">
+                              <div className="mb-4">
+                                <div><span className="text-red-500 font-bold">B</span><span className="text-slate-800 font-bold">_</span> 1. This holiday was used by activists to plan the protests.</div>
+                                <div className="flex gap-6 mt-1 ml-8 text-slate-700"><span>A. Wael Ghonim</span><span>B. National Police Day</span><span>C. SCAF</span></div>
+                              </div>
+                            </div>
+                          </div>
+
+                          {/* MCQ Design 3 */}
+                          <div 
+                            onClick={() => setPaperStyles(prev => ({ ...prev, mcq: 2 }))}
+                            className={`p-6 rounded-2xl border-2 cursor-pointer transition-all ${paperStyles.mcq === 2 ? 'border-orange-500 bg-orange-50/30 shadow-md' : 'border-slate-200 hover:border-orange-300 bg-white'}`}
+                          >
+                            <div className="flex justify-between items-center mb-4">
+                              <h5 className="font-bold text-slate-700">Design 3: Boxed Letters</h5>
+                              {paperStyles.mcq === 2 && <div className="h-6 w-6 bg-orange-500 text-white rounded-full flex items-center justify-center text-xs"><i className="fa-solid fa-check"></i></div>}
+                            </div>
+                            <div className="bg-white p-4 border border-slate-200 rounded-xl font-serif text-sm">
+                              <div className="mb-4">
+                                <div>1. What is the capital of France?</div>
+                                <div className="flex gap-6 mt-1 ml-4 text-slate-700"><span>[A] London</span><span>[B] Paris</span><span>[C] Berlin</span><span>[D] Rome</span></div>
+                              </div>
+                              <div className="mb-4">
+                                <div>2. Which planet is known as the Red Planet?</div>
+                                <div className="flex gap-6 mt-1 ml-4 text-slate-700"><span>[A] Venus</span><span>[B] Mars</span><span>[C] Jupiter</span><span>[D] Saturn</span></div>
+                              </div>
+                              <div>
+                                <div>3. Who wrote "Romeo and Juliet"?</div>
+                                <div className="flex gap-6 mt-1 ml-4 text-slate-700"><span>[A] Dickens</span><span>[B] Austen</span><span>[C] Shakespeare</span><span>[D] Twain</span></div>
+                              </div>
+                            </div>
+                          </div>
+
+                          {/* MCQ Design 4 */}
+                          <div 
+                            onClick={() => setPaperStyles(prev => ({ ...prev, mcq: 3 }))}
+                            className={`p-6 rounded-2xl border-2 cursor-pointer transition-all ${paperStyles.mcq === 3 ? 'border-orange-500 bg-orange-50/30 shadow-md' : 'border-slate-200 hover:border-orange-300 bg-white'}`}
+                          >
+                            <div className="flex justify-between items-center mb-4">
+                              <h5 className="font-bold text-slate-700">Design 4: Circled Letters (Subtle)</h5>
+                              {paperStyles.mcq === 3 && <div className="h-6 w-6 bg-orange-500 text-white rounded-full flex items-center justify-center text-xs"><i className="fa-solid fa-check"></i></div>}
+                            </div>
+                            <div className="bg-white p-4 border border-slate-200 rounded-xl font-serif text-sm">
+                              <div className="mb-4">
+                                <div>1. What is the capital of France?</div>
+                                <div className="flex gap-6 mt-1 ml-4 text-slate-700">
+                                  <span className="flex items-center gap-1"><span className="w-5 h-5 rounded-full border border-slate-300 flex items-center justify-center text-[10px] font-bold">A</span> London</span>
+                                  <span className="flex items-center gap-1"><span className="w-5 h-5 rounded-full border border-slate-300 flex items-center justify-center text-[10px] font-bold">B</span> Paris</span>
+                                  <span className="flex items-center gap-1"><span className="w-5 h-5 rounded-full border border-slate-300 flex items-center justify-center text-[10px] font-bold">C</span> Berlin</span>
+                                </div>
+                              </div>
+                              <div className="mb-4">
+                                <div>2. Which planet is known as the Red Planet?</div>
+                                <div className="flex gap-6 mt-1 ml-4 text-slate-700">
+                                  <span className="flex items-center gap-1"><span className="w-5 h-5 rounded-full border border-slate-300 flex items-center justify-center text-[10px] font-bold">A</span> Venus</span>
+                                  <span className="flex items-center gap-1"><span className="w-5 h-5 rounded-full border border-slate-300 flex items-center justify-center text-[10px] font-bold">B</span> Mars</span>
+                                  <span className="flex items-center gap-1"><span className="w-5 h-5 rounded-full border border-slate-300 flex items-center justify-center text-[10px] font-bold">C</span> Jupiter</span>
+                                </div>
+                              </div>
                             </div>
                           </div>
                         </div>
                       </div>
-                    </div>
-                  </div>
+
+                      {/* Close Paragraph Designs */}
+                      <div className="space-y-6 border-t border-slate-100 pt-8">
+                        <div className="flex items-center gap-3 mb-6">
+                          <div className="h-10 w-10 bg-violet-100 text-violet-600 rounded-xl flex items-center justify-center">
+                            <i className="fa-solid fa-align-left"></i>
+                          </div>
+                          <h4 className="text-lg font-bold text-slate-800 uppercase tracking-widest">Close Paragraph Designs</h4>
+                        </div>
+                        
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                          {/* Close Paragraph Design 1 */}
+                          <div 
+                            onClick={() => setPaperStyles(prev => ({ ...prev, closeParagraph: 0 }))}
+                            className={`p-6 rounded-2xl border-2 cursor-pointer transition-all ${paperStyles.closeParagraph === 0 ? 'border-violet-500 bg-violet-50/30 shadow-md' : 'border-slate-200 hover:border-violet-300 bg-white'}`}
+                          >
+                            <div className="flex justify-between items-center mb-4">
+                              <h5 className="font-bold text-slate-700">Design 1: Numbered Blanks</h5>
+                              {paperStyles.closeParagraph === 0 && <div className="h-6 w-6 bg-violet-500 text-white rounded-full flex items-center justify-center text-xs"><i className="fa-solid fa-check"></i></div>}
+                            </div>
+                            <div className="bg-white p-4 border border-slate-200 rounded-xl font-serif text-sm leading-relaxed">
+                              Yesterday, I (1) ________ to the park. The weather (2) ________ beautiful, and many children (3) ________ playing.
+                            </div>
+                          </div>
+
+                          {/* Close Paragraph Design 2 */}
+                          <div 
+                            onClick={() => setPaperStyles(prev => ({ ...prev, closeParagraph: 1 }))}
+                            className={`p-6 rounded-2xl border-2 cursor-pointer transition-all ${paperStyles.closeParagraph === 1 ? 'border-violet-500 bg-violet-50/30 shadow-md' : 'border-slate-200 hover:border-violet-300 bg-white'}`}
+                          >
+                            <div className="flex justify-between items-center mb-4">
+                              <h5 className="font-bold text-slate-700">Design 2: Boxed Options Below</h5>
+                              {paperStyles.closeParagraph === 1 && <div className="h-6 w-6 bg-violet-500 text-white rounded-full flex items-center justify-center text-xs"><i className="fa-solid fa-check"></i></div>}
+                            </div>
+                            <div className="bg-white p-4 border border-slate-200 rounded-xl font-serif text-sm leading-relaxed">
+                              <p className="mb-4">The sun (1) ____ brightly in the sky. Birds (2) ____ in the trees.</p>
+                              <div className="grid grid-cols-2 gap-2 text-[10px] border-t pt-2">
+                                <div>1. A. shine B. shines C. shining</div>
+                                <div>2. A. sing B. sings C. singing</div>
+                              </div>
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+
+                      {/* Matching Designs */}
+                      <div className="space-y-6 border-t border-slate-100 pt-8">
+                        <div className="flex items-center gap-3 mb-6">
+                          <div className="h-10 w-10 bg-cyan-100 text-cyan-600 rounded-xl flex items-center justify-center">
+                            <i className="fa-solid fa-arrows-left-right"></i>
+                          </div>
+                          <h4 className="text-lg font-bold text-slate-800 uppercase tracking-widest">Matching Designs</h4>
+                        </div>
+                        
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                          {/* Matching Design 1 */}
+                          <div 
+                            onClick={() => setPaperStyles(prev => ({ ...prev, matching: 0 }))}
+                            className={`p-6 rounded-2xl border-2 cursor-pointer transition-all ${paperStyles.matching === 0 ? 'border-cyan-500 bg-cyan-50/30 shadow-md' : 'border-slate-200 hover:border-cyan-300 bg-white'}`}
+                          >
+                            <div className="flex justify-between items-center mb-4">
+                              <h5 className="font-bold text-slate-700">Design 1: Column A & B</h5>
+                              {paperStyles.matching === 0 && <div className="h-6 w-6 bg-cyan-500 text-white rounded-full flex items-center justify-center text-xs"><i className="fa-solid fa-check"></i></div>}
+                            </div>
+                            <div className="bg-white p-4 border border-slate-200 rounded-xl font-serif text-sm">
+                              <div className="grid grid-cols-2 gap-4">
+                                <div className="font-bold border-b pb-1">Column A</div>
+                                <div className="font-bold border-b pb-1">Column B</div>
+                                <div>1. Apple</div><div>A. A red fruit</div>
+                                <div>2. Banana</div><div>B. A yellow fruit</div>
+                              </div>
+                            </div>
+                          </div>
+
+                          {/* Matching Design 2 */}
+                          <div 
+                            onClick={() => setPaperStyles(prev => ({ ...prev, matching: 1 }))}
+                            className={`p-6 rounded-2xl border-2 cursor-pointer transition-all ${paperStyles.matching === 1 ? 'border-cyan-500 bg-cyan-50/30 shadow-md' : 'border-slate-200 hover:border-cyan-300 bg-white'}`}
+                          >
+                            <div className="flex justify-between items-center mb-4">
+                              <h5 className="font-bold text-slate-700">Design 2: Draw Lines</h5>
+                              {paperStyles.matching === 1 && <div className="h-6 w-6 bg-cyan-500 text-white rounded-full flex items-center justify-center text-xs"><i className="fa-solid fa-check"></i></div>}
+                            </div>
+                            <div className="bg-white p-4 border border-slate-200 rounded-xl font-serif text-sm">
+                              <div className="flex justify-between items-center">
+                                <div className="space-y-2">
+                                  <div>• Run</div><div>• Eat</div>
+                                </div>
+                                <div className="space-y-2 text-right">
+                                  <div>Food •</div><div>Fast •</div>
+                                </div>
+                              </div>
+                            </div>
+                          </div>
+                        </div>
+                      </div>
 
                   {/* True or False Design Samples */}
                   <div className="space-y-6 border-t border-slate-100 pt-8">
@@ -2863,167 +3191,300 @@ ${componentLogic}
                       </div>
                     </div>
                   </div>
-                    </>
+                    </div>
                   )}
 
                   {architectTab === 'Vocabulary' && (
-                    <>
-                      {/* Vocabulary Design Samples */}
-                  <div className="space-y-6 md:col-span-2 mt-8 border-t border-slate-100 pt-8">
-                    <div className="flex items-center gap-3 mb-6">
-                      <div className="h-10 w-10 bg-rose-100 text-rose-600 rounded-xl flex items-center justify-center">
-                        <i className="fa-solid fa-spell-check"></i>
-                      </div>
-                      <h4 className="text-lg font-bold text-slate-800 uppercase tracking-widest">Vocabulary Matching Designs</h4>
-                    </div>
-                    
-                    <div className="grid grid-cols-1 gap-8">
-                      {/* Design 1 */}
-                      <div 
-                        onClick={() => setPaperStyles(prev => ({ ...prev, vocabulary: 0 }))}
-                        className={`p-6 rounded-2xl border-2 cursor-pointer transition-all ${paperStyles.vocabulary === 0 ? 'border-rose-500 bg-rose-50/30 shadow-md' : 'border-slate-200 hover:border-rose-300 bg-white'}`}
-                      >
-                        <div className="flex justify-between items-center mb-4">
-                          <h5 className="font-bold text-slate-700">Design 1: Classic Fill-in-the-blank</h5>
-                          {paperStyles.vocabulary === 0 && <div className="h-6 w-6 bg-rose-500 text-white rounded-full flex items-center justify-center text-xs"><i className="fa-solid fa-check"></i></div>}
-                        </div>
-                        <div className="bg-white p-6 border border-slate-200 rounded-xl font-serif text-sm">
-                          <div className="font-bold text-blue-800 mb-4 bg-blue-50 p-2">PART A: Study the following vocabulary words and their corresponding definitions.</div>
-                          <div className="grid grid-cols-[150px_1fr] gap-2">
-                            <div>1. Abundant</div><div><span className="text-blue-500">__</span>: Existing in large quantities.</div>
-                            <div>2. Benevolent</div><div><span className="text-blue-500">__</span>: Well-meaning and kindly.</div>
-                            <div>3. Candid</div><div><span className="text-blue-500">__</span>: Truthful and straightforward.</div>
+                    <div className="space-y-12">
+                      {/* Vocabulary Matching Designs */}
+                      <div className="space-y-6">
+                        <div className="flex items-center gap-3 mb-6">
+                          <div className="h-10 w-10 bg-rose-100 text-rose-600 rounded-xl flex items-center justify-center">
+                            <i className="fa-solid fa-spell-check"></i>
                           </div>
+                          <h4 className="text-lg font-bold text-slate-800 uppercase tracking-widest">Vocabulary Matching Designs</h4>
                         </div>
-                      </div>
+                        
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                          {/* Design 1 */}
+                          <div 
+                            onClick={() => setPaperStyles(prev => ({ ...prev, vocabulary: 0 }))}
+                            className={`p-6 rounded-2xl border-2 cursor-pointer transition-all ${paperStyles.vocabulary === 0 ? 'border-rose-500 bg-rose-50/30 shadow-md' : 'border-slate-200 hover:border-rose-300 bg-white'}`}
+                          >
+                            <div className="flex justify-between items-center mb-4">
+                              <h5 className="font-bold text-slate-700">Design 1: Classic Fill-in-the-blank</h5>
+                              {paperStyles.vocabulary === 0 && <div className="h-6 w-6 bg-rose-500 text-white rounded-full flex items-center justify-center text-xs"><i className="fa-solid fa-check"></i></div>}
+                            </div>
+                            <div className="bg-white p-6 border border-slate-200 rounded-xl font-serif text-sm">
+                              <div className="font-bold text-blue-800 mb-4 bg-blue-50 p-2">PART A: Study the following vocabulary words and their corresponding definitions.</div>
+                              <div className="grid grid-cols-[100px_1fr] gap-2">
+                                <div>1. Abundant</div><div><span className="text-blue-500">__</span>: Existing in large quantities.</div>
+                                <div>2. Benevolent</div><div><span className="text-blue-500">__</span>: Well-meaning and kindly.</div>
+                              </div>
+                            </div>
+                          </div>
 
-                      {/* Design 2 */}
-                      <div 
-                        onClick={() => setPaperStyles(prev => ({ ...prev, vocabulary: 1 }))}
-                        className={`p-6 rounded-2xl border-2 cursor-pointer transition-all ${paperStyles.vocabulary === 1 ? 'border-rose-500 bg-rose-50/30 shadow-md' : 'border-slate-200 hover:border-rose-300 bg-white'}`}
-                      >
-                        <div className="flex justify-between items-center mb-4">
-                          <h5 className="font-bold text-slate-700">Design 2: Alternating Rows (Italic)</h5>
-                          {paperStyles.vocabulary === 1 && <div className="h-6 w-6 bg-rose-500 text-white rounded-full flex items-center justify-center text-xs"><i className="fa-solid fa-check"></i></div>}
-                        </div>
-                        <div className="bg-white p-6 border border-slate-200 rounded-xl font-serif text-sm">
-                          <div className="font-bold text-blue-800 mb-4 bg-blue-50 p-2">PART A: Study the following vocabulary words and their corresponding definitions.</div>
-                          <div className="grid grid-cols-[150px_1fr]">
-                            <div className="py-1 italic">1. Abundant</div><div className="py-1">Existing in large quantities.</div>
-                            <div className="py-1 italic bg-gray-100">2. Benevolent</div><div className="py-1 bg-gray-100">Well-meaning and kindly.</div>
-                            <div className="py-1 italic">3. Candid</div><div className="py-1">Truthful and straightforward.</div>
-                          </div>
-                        </div>
-                      </div>
-
-                      {/* Design 3 */}
-                      <div 
-                        onClick={() => setPaperStyles(prev => ({ ...prev, vocabulary: 2 }))}
-                        className={`p-6 rounded-2xl border-2 cursor-pointer transition-all ${paperStyles.vocabulary === 2 ? 'border-rose-500 bg-rose-50/30 shadow-md' : 'border-slate-200 hover:border-rose-300 bg-white'}`}
-                      >
-                        <div className="flex justify-between items-center mb-4">
-                          <h5 className="font-bold text-slate-700">Design 3: Standard Alternating Rows</h5>
-                          {paperStyles.vocabulary === 2 && <div className="h-6 w-6 bg-rose-500 text-white rounded-full flex items-center justify-center text-xs"><i className="fa-solid fa-check"></i></div>}
-                        </div>
-                        <div className="bg-white p-6 border border-slate-200 rounded-xl font-serif text-sm">
-                          <div className="font-bold text-blue-800 mb-4 bg-blue-50 p-2">PART A: Study the following vocabulary words and their corresponding definitions.</div>
-                          <div className="grid grid-cols-[150px_1fr]">
-                            <div className="py-1">1. Abundant</div><div className="py-1">Existing in large quantities.</div>
-                            <div className="py-1 bg-gray-100">2. Benevolent</div><div className="py-1 bg-gray-100">Well-meaning and kindly.</div>
-                            <div className="py-1">3. Candid</div><div className="py-1">Truthful and straightforward.</div>
-                          </div>
-                        </div>
-                      </div>
-
-                      {/* Design 4 */}
-                      <div 
-                        onClick={() => setPaperStyles(prev => ({ ...prev, vocabulary: 3 }))}
-                        className={`p-6 rounded-2xl border-2 cursor-pointer transition-all ${paperStyles.vocabulary === 3 ? 'border-rose-500 bg-rose-50/30 shadow-md' : 'border-slate-200 hover:border-rose-300 bg-white'}`}
-                      >
-                        <div className="flex justify-between items-center mb-4">
-                          <h5 className="font-bold text-slate-700">Design 4: Bordered Table (Reversed)</h5>
-                          {paperStyles.vocabulary === 3 && <div className="h-6 w-6 bg-rose-500 text-white rounded-full flex items-center justify-center text-xs"><i className="fa-solid fa-check"></i></div>}
-                        </div>
-                        <div className="bg-white p-6 border border-slate-200 rounded-xl font-serif text-sm">
-                          <div className="font-bold text-blue-800 mb-4 bg-blue-50 p-2">PART A: Study the following vocabulary words and their corresponding definitions.</div>
-                          <table className="w-full border-collapse border border-slate-400">
-                            <tbody>
-                              <tr>
-                                <td className="border border-slate-400 p-2">Existing in large quantities</td>
-                                <td className="border border-slate-400 p-2">1. Abundant</td>
-                              </tr>
-                              <tr>
-                                <td className="border border-slate-400 p-2">Well-meaning and kindly</td>
-                                <td className="border border-slate-400 p-2">2. Benevolent</td>
-                              </tr>
-                              <tr>
-                                <td className="border border-slate-400 p-2">Truthful and straightforward</td>
-                                <td className="border border-slate-400 p-2">3. Candid</td>
-                              </tr>
-                            </tbody>
-                          </table>
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-                    </>
-                  )}
-
-                  {architectTab === 'Reading' && (
-                    <div className="space-y-6">
-                      <div className="flex items-center gap-3 mb-6">
-                        <div className="h-10 w-10 bg-emerald-100 text-emerald-600 rounded-xl flex items-center justify-center">
-                          <i className="fa-solid fa-book-open"></i>
-                        </div>
-                        <h4 className="text-lg font-bold text-slate-800 uppercase tracking-widest">Reading Passage Designs</h4>
-                      </div>
-                      
-                      <div className="grid grid-cols-1 gap-6">
-                        {/* Reading Design 1 */}
-                        <div 
-                          onClick={() => setPaperStyles(prev => ({ ...prev, readingPassage: 0 }))}
-                          className={`p-6 rounded-2xl border-2 cursor-pointer transition-all ${paperStyles.readingPassage === 0 ? 'border-emerald-500 bg-emerald-50/30 shadow-md' : 'border-slate-200 hover:border-emerald-300 bg-white'}`}
-                        >
-                          <div className="flex justify-between items-center mb-4">
-                            <h5 className="font-bold text-slate-700">Design 1: Standard Single Column</h5>
-                            {paperStyles.readingPassage === 0 && <div className="h-6 w-6 bg-emerald-500 text-white rounded-full flex items-center justify-center text-xs"><i className="fa-solid fa-check"></i></div>}
-                          </div>
-                          <div className="bg-white p-6 border border-slate-200 rounded-xl font-serif text-sm">
-                            <h6 className="font-bold text-center mb-4">The Great Barrier Reef</h6>
-                            <p className="text-justify leading-relaxed">The Great Barrier Reef is the world's largest coral reef system composed of over 2,900 individual reefs and 900 islands stretching for over 2,300 kilometres over an area of approximately 344,400 square kilometres. The reef is located in the Coral Sea, off the coast of Queensland, Australia.</p>
-                          </div>
-                        </div>
-
-                        {/* Reading Design 2 */}
-                        <div 
-                          onClick={() => setPaperStyles(prev => ({ ...prev, readingPassage: 1 }))}
-                          className={`p-6 rounded-2xl border-2 cursor-pointer transition-all ${paperStyles.readingPassage === 1 ? 'border-emerald-500 bg-emerald-50/30 shadow-md' : 'border-slate-200 hover:border-emerald-300 bg-white'}`}
-                        >
-                          <div className="flex justify-between items-center mb-4">
-                            <h5 className="font-bold text-slate-700">Design 2: Two-Column Layout</h5>
-                            {paperStyles.readingPassage === 1 && <div className="h-6 w-6 bg-emerald-500 text-white rounded-full flex items-center justify-center text-xs"><i className="fa-solid fa-check"></i></div>}
-                          </div>
-                          <div className="bg-white p-6 border border-slate-200 rounded-xl font-serif text-sm">
-                            <h6 className="font-bold text-center mb-4">The Great Barrier Reef</h6>
-                            <div className="columns-2 gap-6 text-justify leading-relaxed">
-                              <p>The Great Barrier Reef is the world's largest coral reef system composed of over 2,900 individual reefs and 900 islands stretching for over 2,300 kilometres over an area of approximately 344,400 square kilometres.</p>
-                              <p>The reef is located in the Coral Sea, off the coast of Queensland, Australia. It can be seen from outer space and is the world's biggest single structure made by living organisms.</p>
+                          {/* Design 2 */}
+                          <div 
+                            onClick={() => setPaperStyles(prev => ({ ...prev, vocabulary: 1 }))}
+                            className={`p-6 rounded-2xl border-2 cursor-pointer transition-all ${paperStyles.vocabulary === 1 ? 'border-rose-500 bg-rose-50/30 shadow-md' : 'border-slate-200 hover:border-rose-300 bg-white'}`}
+                          >
+                            <div className="flex justify-between items-center mb-4">
+                              <h5 className="font-bold text-slate-700">Design 2: Alternating Rows (Italic)</h5>
+                              {paperStyles.vocabulary === 1 && <div className="h-6 w-6 bg-rose-500 text-white rounded-full flex items-center justify-center text-xs"><i className="fa-solid fa-check"></i></div>}
+                            </div>
+                            <div className="bg-white p-6 border border-slate-200 rounded-xl font-serif text-sm">
+                              <div className="font-bold text-blue-800 mb-4 bg-blue-50 p-2">PART A: Study the following vocabulary words and their corresponding definitions.</div>
+                              <div className="grid grid-cols-[100px_1fr]">
+                                <div className="py-1 italic">1. Abundant</div><div className="py-1">Existing in large quantities.</div>
+                                <div className="py-1 italic bg-gray-100">2. Benevolent</div><div className="py-1 bg-gray-100">Well-meaning and kindly.</div>
+                              </div>
                             </div>
                           </div>
                         </div>
+                      </div>
 
-                        {/* Reading Design 3 */}
-                        <div 
-                          onClick={() => setPaperStyles(prev => ({ ...prev, readingPassage: 2 }))}
-                          className={`p-6 rounded-2xl border-2 cursor-pointer transition-all ${paperStyles.readingPassage === 2 ? 'border-emerald-500 bg-emerald-50/30 shadow-md' : 'border-slate-200 hover:border-emerald-300 bg-white'}`}
-                        >
-                          <div className="flex justify-between items-center mb-4">
-                            <h5 className="font-bold text-slate-700">Design 3: Bordered Box</h5>
-                            {paperStyles.readingPassage === 2 && <div className="h-6 w-6 bg-emerald-500 text-white rounded-full flex items-center justify-center text-xs"><i className="fa-solid fa-check"></i></div>}
+                      {/* Box Vocabulary Designs */}
+                      <div className="space-y-6 border-t border-slate-100 pt-8">
+                        <div className="flex items-center gap-3 mb-6">
+                          <div className="h-10 w-10 bg-amber-100 text-amber-600 rounded-xl flex items-center justify-center">
+                            <i className="fa-solid fa-box"></i>
                           </div>
-                          <div className="bg-white p-6 border-2 border-slate-800 rounded-xl font-serif text-sm">
-                            <h6 className="font-bold text-center mb-4">The Great Barrier Reef</h6>
-                            <p className="text-justify leading-relaxed">The Great Barrier Reef is the world's largest coral reef system composed of over 2,900 individual reefs and 900 islands stretching for over 2,300 kilometres over an area of approximately 344,400 square kilometres. The reef is located in the Coral Sea, off the coast of Queensland, Australia.</p>
+                          <h4 className="text-lg font-bold text-slate-800 uppercase tracking-widest">Box Vocabulary Designs</h4>
+                        </div>
+                        
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                          {/* Box Vocab Design 1 */}
+                          <div 
+                            onClick={() => setPaperStyles(prev => ({ ...prev, boxVocab: 0 }))}
+                            className={`p-6 rounded-2xl border-2 cursor-pointer transition-all ${paperStyles.boxVocab === 0 ? 'border-amber-500 bg-amber-50/30 shadow-md' : 'border-slate-200 hover:border-amber-300 bg-white'}`}
+                          >
+                            <div className="flex justify-between items-center mb-4">
+                              <h5 className="font-bold text-slate-700">Design 1: Word Bank at Top</h5>
+                              {paperStyles.boxVocab === 0 && <div className="h-6 w-6 bg-amber-500 text-white rounded-full flex items-center justify-center text-xs"><i className="fa-solid fa-check"></i></div>}
+                            </div>
+                            <div className="bg-white p-4 border border-slate-200 rounded-xl font-serif text-sm">
+                              <div className="border-2 border-slate-800 p-2 text-center font-bold mb-4">
+                                apple, banana, cherry, date
+                              </div>
+                              <div className="space-y-2">
+                                <div>1. I like to eat a red ________.</div>
+                                <div>2. Monkeys love to eat ________.</div>
+                              </div>
+                            </div>
+                          </div>
+
+                          {/* Box Vocab Design 2 */}
+                          <div 
+                            onClick={() => setPaperStyles(prev => ({ ...prev, boxVocab: 1 }))}
+                            className={`p-6 rounded-2xl border-2 cursor-pointer transition-all ${paperStyles.boxVocab === 1 ? 'border-amber-500 bg-amber-50/30 shadow-md' : 'border-slate-200 hover:border-amber-300 bg-white'}`}
+                          >
+                            <div className="flex justify-between items-center mb-4">
+                              <h5 className="font-bold text-slate-700">Design 2: Themed Word Box</h5>
+                              {paperStyles.boxVocab === 1 && <div className="h-6 w-6 bg-amber-500 text-white rounded-full flex items-center justify-center text-xs"><i className="fa-solid fa-check"></i></div>}
+                            </div>
+                            <div className="bg-white p-4 border border-slate-200 rounded-xl font-serif text-sm">
+                              <div className="bg-slate-100 p-3 rounded-lg border-l-4 border-amber-500 mb-4">
+                                <div className="font-bold text-[10px] uppercase text-amber-700 mb-1">Word Bank</div>
+                                <div className="flex gap-4 font-bold"><span>• apple</span><span>• banana</span><span>• cherry</span></div>
+                              </div>
+                              <div className="space-y-2">
+                                <div>1. I like to eat a red ________.</div>
+                              </div>
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+
+                      {/* Definition Matching Styles */}
+                      <div className="space-y-6 border-t border-slate-100 pt-8">
+                        <div className="flex items-center gap-3 mb-6">
+                          <div className="h-10 w-10 bg-pink-100 text-pink-600 rounded-xl flex items-center justify-center">
+                            <i className="fa-solid fa-book"></i>
+                          </div>
+                          <h4 className="text-lg font-bold text-slate-800 uppercase tracking-widest">Definition Matching Styles</h4>
+                        </div>
+                        
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                          {/* Def Matching Design 1 */}
+                          <div 
+                            onClick={() => setPaperStyles(prev => ({ ...prev, defMatching: 0 }))}
+                            className={`p-6 rounded-2xl border-2 cursor-pointer transition-all ${paperStyles.defMatching === 0 ? 'border-pink-500 bg-pink-50/30 shadow-md' : 'border-slate-200 hover:border-pink-300 bg-white'}`}
+                          >
+                            <div className="flex justify-between items-center mb-4">
+                              <h5 className="font-bold text-slate-700">Design 1: Definitions at Bottom</h5>
+                              {paperStyles.defMatching === 0 && <div className="h-6 w-6 bg-pink-500 text-white rounded-full flex items-center justify-center text-xs"><i className="fa-solid fa-check"></i></div>}
+                            </div>
+                            <div className="bg-white p-4 border border-slate-200 rounded-xl font-serif text-sm">
+                              <div className="space-y-2 mb-4">
+                                <div>1. Abundant: ________</div>
+                                <div>2. Benevolent: ________</div>
+                              </div>
+                              <div className="border-t pt-2 text-[10px] italic text-slate-500">
+                                A. Well-meaning and kindly. B. Existing in large quantities.
+                              </div>
+                            </div>
+                          </div>
+
+                          {/* Def Matching Design 2 */}
+                          <div 
+                            onClick={() => setPaperStyles(prev => ({ ...prev, defMatching: 1 }))}
+                            className={`p-6 rounded-2xl border-2 cursor-pointer transition-all ${paperStyles.defMatching === 1 ? 'border-pink-500 bg-pink-50/30 shadow-md' : 'border-slate-200 hover:border-pink-300 bg-white'}`}
+                          >
+                            <div className="flex justify-between items-center mb-4">
+                              <h5 className="font-bold text-slate-700">Design 2: Definitions in Middle</h5>
+                              {paperStyles.defMatching === 1 && <div className="h-6 w-6 bg-pink-500 text-white rounded-full flex items-center justify-center text-xs"><i className="fa-solid fa-check"></i></div>}
+                            </div>
+                            <div className="bg-white p-4 border border-slate-200 rounded-xl font-serif text-sm">
+                              <div>1. Abundant: ________</div>
+                              <div className="bg-slate-50 p-2 my-2 border rounded text-[10px] text-center">
+                                A. Well-meaning and kindly. B. Existing in large quantities.
+                              </div>
+                              <div>2. Benevolent: ________</div>
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  )}
+
+                  {architectTab === 'Reading' && (
+                    <div className="space-y-12">
+                      {/* Reading Passage Designs */}
+                      <div className="space-y-6">
+                        <div className="flex items-center gap-3 mb-6">
+                          <div className="h-10 w-10 bg-emerald-100 text-emerald-600 rounded-xl flex items-center justify-center">
+                            <i className="fa-solid fa-book-open"></i>
+                          </div>
+                          <h4 className="text-lg font-bold text-slate-800 uppercase tracking-widest">Reading Passage Designs</h4>
+                        </div>
+                        
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                          {/* Reading Design 1 */}
+                          <div 
+                            onClick={() => setPaperStyles(prev => ({ ...prev, readingPassage: 0 }))}
+                            className={`p-6 rounded-2xl border-2 cursor-pointer transition-all ${paperStyles.readingPassage === 0 ? 'border-emerald-500 bg-emerald-50/30 shadow-md' : 'border-slate-200 hover:border-emerald-300 bg-white'}`}
+                          >
+                            <div className="flex justify-between items-center mb-4">
+                              <h5 className="font-bold text-slate-700">Design 1: Standard Single Column</h5>
+                              {paperStyles.readingPassage === 0 && <div className="h-6 w-6 bg-emerald-500 text-white rounded-full flex items-center justify-center text-xs"><i className="fa-solid fa-check"></i></div>}
+                            </div>
+                            <div className="bg-white p-6 border border-slate-200 rounded-xl font-serif text-sm">
+                              <h6 className="font-bold text-center mb-4">The Great Barrier Reef</h6>
+                              <p className="text-justify leading-relaxed">The Great Barrier Reef is the world's largest coral reef system composed of over 2,900 individual reefs and 900 islands stretching for over 2,300 kilometres over an area of approximately 344,400 square kilometres. The reef is located in the Coral Sea, off the coast of Queensland, Australia.</p>
+                            </div>
+                          </div>
+
+                          {/* Reading Design 2 */}
+                          <div 
+                            onClick={() => setPaperStyles(prev => ({ ...prev, readingPassage: 1 }))}
+                            className={`p-6 rounded-2xl border-2 cursor-pointer transition-all ${paperStyles.readingPassage === 1 ? 'border-emerald-500 bg-emerald-50/30 shadow-md' : 'border-slate-200 hover:border-emerald-300 bg-white'}`}
+                          >
+                            <div className="flex justify-between items-center mb-4">
+                              <h5 className="font-bold text-slate-700">Design 2: Two-Column Layout</h5>
+                              {paperStyles.readingPassage === 1 && <div className="h-6 w-6 bg-emerald-500 text-white rounded-full flex items-center justify-center text-xs"><i className="fa-solid fa-check"></i></div>}
+                            </div>
+                            <div className="bg-white p-6 border border-slate-200 rounded-xl font-serif text-sm">
+                              <h6 className="font-bold text-center mb-4">The Great Barrier Reef</h6>
+                              <div className="columns-2 gap-6 text-justify leading-relaxed">
+                                <p>The Great Barrier Reef is the world's largest coral reef system composed of over 2,900 individual reefs and 900 islands stretching for over 2,300 kilometres over an area of approximately 344,400 square kilometres.</p>
+                                <p>The reef is located in the Coral Sea, off the coast of Queensland, Australia. It can be seen from outer space and is the world's biggest single structure made by living organisms.</p>
+                              </div>
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+
+                      {/* Reading True/False Designs */}
+                      <div className="space-y-6 border-t border-slate-100 pt-8">
+                        <div className="flex items-center gap-3 mb-6">
+                          <div className="h-10 w-10 bg-sky-100 text-sky-600 rounded-xl flex items-center justify-center">
+                            <i className="fa-solid fa-check-double"></i>
+                          </div>
+                          <h4 className="text-lg font-bold text-slate-800 uppercase tracking-widest">Reading True/False Designs</h4>
+                        </div>
+                        
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                          {/* Reading T/F Design 1 */}
+                          <div 
+                            onClick={() => setPaperStyles(prev => ({ ...prev, readingTF: 0 }))}
+                            className={`p-6 rounded-2xl border-2 cursor-pointer transition-all ${paperStyles.readingTF === 0 ? 'border-sky-500 bg-sky-50/30 shadow-md' : 'border-slate-200 hover:border-sky-300 bg-white'}`}
+                          >
+                            <div className="flex justify-between items-center mb-4">
+                              <h5 className="font-bold text-slate-700">Design 1: T / F / NG</h5>
+                              {paperStyles.readingTF === 0 && <div className="h-6 w-6 bg-sky-500 text-white rounded-full flex items-center justify-center text-xs"><i className="fa-solid fa-check"></i></div>}
+                            </div>
+                            <div className="bg-white p-4 border border-slate-200 rounded-xl font-serif text-sm space-y-2">
+                              <div>1. The reef is in the Coral Sea. <span className="font-bold text-sky-600">[ T / F / NG ]</span></div>
+                              <div>2. It is visible from Mars. <span className="font-bold text-sky-600">[ T / F / NG ]</span></div>
+                            </div>
+                          </div>
+
+                          {/* Reading T/F Design 2 */}
+                          <div 
+                            onClick={() => setPaperStyles(prev => ({ ...prev, readingTF: 1 }))}
+                            className={`p-6 rounded-2xl border-2 cursor-pointer transition-all ${paperStyles.readingTF === 1 ? 'border-sky-500 bg-sky-50/30 shadow-md' : 'border-slate-200 hover:border-sky-300 bg-white'}`}
+                          >
+                            <div className="flex justify-between items-center mb-4">
+                              <h5 className="font-bold text-slate-700">Design 2: Yes / No / NG</h5>
+                              {paperStyles.readingTF === 1 && <div className="h-6 w-6 bg-sky-500 text-white rounded-full flex items-center justify-center text-xs"><i className="fa-solid fa-check"></i></div>}
+                            </div>
+                            <div className="bg-white p-4 border border-slate-200 rounded-xl font-serif text-sm space-y-2">
+                              <div>1. The reef is in the Coral Sea. <span className="font-bold text-sky-600">[ YES / NO / NG ]</span></div>
+                              <div>2. It is visible from Mars. <span className="font-bold text-sky-600">[ YES / NO / NG ]</span></div>
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+
+                      {/* Reading Matching Designs */}
+                      <div className="space-y-6 border-t border-slate-100 pt-8">
+                        <div className="flex items-center gap-3 mb-6">
+                          <div className="h-10 w-10 bg-indigo-100 text-indigo-600 rounded-xl flex items-center justify-center">
+                            <i className="fa-solid fa-link"></i>
+                          </div>
+                          <h4 className="text-lg font-bold text-slate-800 uppercase tracking-widest">Reading Matching Designs</h4>
+                        </div>
+                        
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                          {/* Reading Matching Design 1 */}
+                          <div 
+                            onClick={() => setPaperStyles(prev => ({ ...prev, readingMatching: 0 }))}
+                            className={`p-6 rounded-2xl border-2 cursor-pointer transition-all ${paperStyles.readingMatching === 0 ? 'border-indigo-500 bg-indigo-50/30 shadow-md' : 'border-slate-200 hover:border-indigo-300 bg-white'}`}
+                          >
+                            <div className="flex justify-between items-center mb-4">
+                              <h5 className="font-bold text-slate-700">Design 1: Heading Matching</h5>
+                              {paperStyles.readingMatching === 0 && <div className="h-6 w-6 bg-indigo-500 text-white rounded-full flex items-center justify-center text-xs"><i className="fa-solid fa-check"></i></div>}
+                            </div>
+                            <div className="bg-white p-4 border border-slate-200 rounded-xl font-serif text-sm">
+                              <div className="font-bold mb-2">List of Headings</div>
+                              <div className="text-[10px] space-y-1 mb-4">
+                                <div>i. The location of the reef</div>
+                                <div>ii. The size of the reef</div>
+                              </div>
+                              <div>Paragraph A: [ ____ ]</div>
+                              <div>Paragraph B: [ ____ ]</div>
+                            </div>
+                          </div>
+
+                          {/* Reading Matching Design 2 */}
+                          <div 
+                            onClick={() => setPaperStyles(prev => ({ ...prev, readingMatching: 1 }))}
+                            className={`p-6 rounded-2xl border-2 cursor-pointer transition-all ${paperStyles.readingMatching === 1 ? 'border-indigo-500 bg-indigo-50/30 shadow-md' : 'border-slate-200 hover:border-indigo-300 bg-white'}`}
+                          >
+                            <div className="flex justify-between items-center mb-4">
+                              <h5 className="font-bold text-slate-700">Design 2: Feature Matching</h5>
+                              {paperStyles.readingMatching === 1 && <div className="h-6 w-6 bg-indigo-500 text-white rounded-full flex items-center justify-center text-xs"><i className="fa-solid fa-check"></i></div>}
+                            </div>
+                            <div className="bg-white p-4 border border-slate-200 rounded-xl font-serif text-sm">
+                              <div className="space-y-2">
+                                <div>1. It is the largest reef system. [ ____ ]</div>
+                                <div>2. It is in the Coral Sea. [ ____ ]</div>
+                              </div>
+                              <div className="mt-4 grid grid-cols-2 gap-2 text-[10px] border-t pt-2">
+                                <div>A. Paragraph 1</div><div>B. Paragraph 2</div>
+                              </div>
+                            </div>
                           </div>
                         </div>
                       </div>
@@ -3449,11 +3910,78 @@ ${componentLogic}
         </button>
       )}
 
-      {showSettings && (
+      {/* Subscription Modal */}
+      {showSettings && (settingsTab as string) === 'COMMAND' && (
+        <div className="fixed inset-0 z-[200] flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm animate-in fade-in duration-300">
+          <div className="bg-white rounded-[32px] w-full max-w-4xl overflow-hidden shadow-2xl flex flex-col lg:flex-row">
+            <div className="lg:w-1/3 bg-slate-900 p-10 text-white flex flex-col justify-between relative overflow-hidden">
+              <div className="absolute top-0 left-0 w-full h-full opacity-10 pointer-events-none">
+                <div className="absolute top-[-10%] left-[-10%] w-[120%] h-[120%] bg-[radial-gradient(circle,rgba(249,115,22,0.4)_0%,transparent_70%)]"></div>
+              </div>
+              <div className="relative z-10">
+                <div className="h-12 w-12 bg-orange-600 rounded-2xl flex items-center justify-center mb-6 shadow-lg shadow-orange-600/20">
+                  <i className="fa-solid fa-crown text-xl"></i>
+                </div>
+                <h2 className="text-3xl font-black uppercase tracking-tighter leading-none mb-4">Upgrade to Architect Pro</h2>
+                <p className="text-slate-400 text-sm leading-relaxed">Unlock the full power of DPSS Neural Engine with advanced design tools and unlimited generation.</p>
+              </div>
+              <div className="relative z-10 space-y-4">
+                <div className="flex items-center gap-3">
+                  <i className="fa-solid fa-check text-orange-500"></i>
+                  <span className="text-[10px] font-bold uppercase tracking-widest text-slate-300">Unlimited Generation</span>
+                </div>
+                <div className="flex items-center gap-3">
+                  <i className="fa-solid fa-check text-orange-500"></i>
+                  <span className="text-[10px] font-black uppercase tracking-widest text-slate-300">Advanced Design Architect</span>
+                </div>
+                <div className="flex items-center gap-3">
+                  <i className="fa-solid fa-check text-orange-500"></i>
+                  <span className="text-[10px] font-black uppercase tracking-widest text-slate-300">Cloud Sync & History</span>
+                </div>
+              </div>
+            </div>
+            <div className="flex-1 p-10 bg-slate-50">
+              <div className="flex justify-between items-center mb-10">
+                <h3 className="text-xl font-black text-slate-900 uppercase tracking-tight">Select Your Plan</h3>
+                <button onClick={() => setShowSettings(false)} className="h-10 w-10 bg-white border border-slate-200 rounded-xl flex items-center justify-center text-slate-400 hover:text-rose-500 transition-all shadow-sm">
+                  <i className="fa-solid fa-xmark"></i>
+                </button>
+              </div>
+              
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                {[
+                  { name: 'Monthly', price: '$9.99', desc: 'Billed monthly', icon: 'fa-calendar-day' },
+                  { name: 'Yearly', price: '$89.99', desc: 'Save 25%', icon: 'fa-calendar-check', popular: true },
+                  { name: 'Lifetime', price: '$199', desc: 'One-time payment', icon: 'fa-infinity' }
+                ].map((plan) => (
+                  <div key={plan.name} className={`p-6 rounded-2xl border-2 transition-all cursor-pointer relative ${plan.popular ? 'border-orange-500 bg-white shadow-xl scale-105 z-10' : 'border-slate-200 bg-white hover:border-orange-200'}`}>
+                    {plan.popular && <div className="absolute -top-3 left-1/2 -translate-x-1/2 bg-orange-500 text-white text-[8px] font-black px-3 py-1 rounded-full uppercase tracking-widest">Most Popular</div>}
+                    <div className="h-10 w-10 bg-slate-50 rounded-xl flex items-center justify-center mb-4 text-slate-400">
+                      <i className={`fa-solid ${plan.icon}`}></i>
+                    </div>
+                    <h4 className="font-black text-slate-900 uppercase tracking-tight mb-1">{plan.name}</h4>
+                    <div className="text-2xl font-black text-slate-900 mb-1">{plan.price}</div>
+                    <p className="text-[10px] text-slate-400 font-bold uppercase">{plan.desc}</p>
+                  </div>
+                ))}
+              </div>
+
+              <div className="mt-10 space-y-4">
+                <button className="w-full py-4 bg-orange-600 text-white rounded-2xl font-black uppercase tracking-[0.2em] text-xs shadow-xl shadow-orange-200 hover:bg-orange-700 transition-all active:scale-[0.98]">
+                  Start Professional Journey
+                </button>
+                <p className="text-center text-[9px] text-slate-400 font-bold uppercase tracking-widest">Secure Payment via Stripe • Mastercard Accepted</p>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {showSettings && settingsTab !== 'COMMAND' && (
         <div className="fixed inset-0 z-[250] bg-slate-950/80 backdrop-blur-2xl flex items-center justify-center p-4">
           <div className="bg-[#f8fafc] bg-[radial-gradient(circle_at_top_right,rgba(234,88,12,0.03),transparent_40%),radial-gradient(circle_at_bottom_left,rgba(37,99,235,0.03),transparent_40%)] rounded-[48px] lg:rounded-[64px] w-full max-w-7xl h-full max-h-[95vh] overflow-hidden shadow-2xl flex flex-col border border-white/50">
              <div className="p-8 lg:p-12 pb-4 flex justify-between items-center"><div className="flex items-center gap-4"><div className="h-4 w-4 bg-orange-600 rounded-full animate-pulse"></div><h2 className="text-[12px] font-black uppercase text-slate-900 tracking-widest">Workspace Control Node</h2></div><button onClick={() => setShowSettings(false)} className="h-10 w-10 bg-slate-100 rounded-full flex items-center justify-center text-slate-400 hover:text-slate-900"><i className="fa-solid fa-xmark text-xl"></i></button></div>
-             <div className="px-6 lg:px-12 mb-8"><div className="flex bg-slate-100/70 p-2 rounded-[32px] gap-1 overflow-x-auto no-scrollbar shadow-inner">{['COMMAND', 'ACCOUNT', 'ENGINE', 'BACKBONE LOGIC', 'DESIGN', 'LOGO'].map(tab => (<button key={tab} onClick={() => setSettingsTab(tab as SettingsTab)} className={`px-6 lg:px-10 py-4 rounded-[28px] text-[10px] font-black uppercase tracking-widest transition-all ${settingsTab === tab ? 'bg-orange-600 text-white shadow-xl' : 'text-slate-400 hover:text-slate-600'}`}>{tab}</button>))}</div></div>
+             <div className="px-6 lg:px-12 mb-8"><div className="flex bg-slate-100/70 p-2 rounded-[32px] gap-1 overflow-x-auto no-scrollbar shadow-inner">{['COMMAND', 'ACCOUNT', 'ENGINE', 'BACKBONE LOGIC', 'DESIGN', 'LOGO', 'CUSTOM TEMPLATES'].map(tab => (<button key={tab} onClick={() => setSettingsTab(tab as SettingsTab)} className={`px-6 lg:px-10 py-4 rounded-[28px] text-[10px] font-black uppercase tracking-widest transition-all ${settingsTab === tab ? 'bg-orange-600 text-white shadow-xl' : 'text-slate-400 hover:text-slate-600'}`}>{tab}</button>))}</div></div>
              <div className="flex-1 overflow-y-auto px-6 lg:px-12 pb-12 space-y-12 no-scrollbar">
                 {settingsTab === 'LOGO' && (
                   <div className="space-y-12 animate-in fade-in slide-in-from-bottom-6">
@@ -3509,7 +4037,7 @@ ${componentLogic}
                     </div>
                   </div>
                 )}
-                {settingsTab === 'COMMAND' && (
+                {(settingsTab as string) === 'COMMAND' && (
                    <div className="space-y-10 animate-in fade-in slide-in-from-bottom-6">
                      <div className="flex justify-between items-center px-2"><h3 className="text-[13px] font-black text-slate-900 uppercase tracking-widest">Instruction Templates</h3><button onClick={addTemplate} className="text-[11px] font-black text-orange-600 uppercase border-b-2 border-orange-600">+ New Part</button></div>
                      <div className="flex bg-slate-100/50 p-1.5 rounded-[24px] gap-1 overflow-x-auto no-scrollbar shadow-sm border border-slate-100 self-start">{['GRAMMAR', 'VOCABULARY', 'READING', 'TABLES', 'KIDS'].map(cat => (<button key={cat} onClick={() => setActiveTemplateCategory(cat)} className={`px-6 py-2.5 rounded-[18px] text-[10px] font-black uppercase tracking-widest transition-all ${activeTemplateCategory === cat ? 'bg-orange-600 text-white shadow-md' : 'text-slate-400 hover:text-slate-600'}`}>{cat}</button>))}</div>
@@ -3526,10 +4054,156 @@ ${componentLogic}
                      </div>
                    </div>
                 )}
+                {settingsTab === 'CUSTOM TEMPLATES' && (
+                   <div className="space-y-10 animate-in fade-in slide-in-from-bottom-6">
+                     <div className="flex justify-between items-center px-2">
+                       <div>
+                         <h3 className="text-[13px] font-black text-slate-900 uppercase tracking-widest">Custom Instruction Architect</h3>
+                         <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mt-1">Define unique formatting & logic injection rules</p>
+                       </div>
+                       <button 
+                         onClick={() => {
+                           const newId = `custom-${Date.now()}`;
+                           setInstructionTemplates(prev => [...prev, { 
+                             id: newId, 
+                             label: `CUSTOM PART`, 
+                             prompt: `Part: [Instruction Text]\n\nLogic: [Detailed AI instructions for formatting and content generation]\n\nFormatting: [Specify MCQ style, table layout, etc.]`, 
+                             category: 'CUSTOM', 
+                             columnCount: 1 
+                           }]);
+                           setExpandedTemplateId(newId);
+                         }} 
+                         className="px-6 py-3 bg-orange-600 text-white rounded-2xl text-[10px] font-black uppercase tracking-widest hover:bg-orange-700 shadow-lg shadow-orange-200 transition-all flex items-center gap-2"
+                       >
+                         <i className="fa-solid fa-plus"></i> Create Custom Template
+                       </button>
+                     </div>
+
+                     <div className="space-y-4">
+                        {instructionTemplates.filter(t => t.category === 'CUSTOM').length === 0 ? (
+                          <div className="bg-slate-50 border-2 border-dashed border-slate-200 rounded-[40px] p-20 text-center">
+                            <div className="h-20 w-20 bg-white rounded-3xl flex items-center justify-center mx-auto mb-6 shadow-sm">
+                              <i className="fa-solid fa-scroll text-slate-300 text-3xl"></i>
+                            </div>
+                            <h4 className="text-slate-900 font-black uppercase tracking-widest text-sm mb-2">No Custom Templates Yet</h4>
+                            <p className="text-slate-400 text-[10px] font-bold uppercase tracking-widest max-w-xs mx-auto leading-relaxed">Create your first custom instruction template to define unique test parts and logic.</p>
+                          </div>
+                        ) : (
+                          instructionTemplates.filter(t => t.category === 'CUSTOM').map(t => {
+                            const isExpanded = expandedTemplateId === t.id;
+                            return (
+                              <div key={t.id} className={`bg-white border rounded-[32px] overflow-hidden transition-all duration-300 ${isExpanded ? 'border-orange-200 shadow-xl' : 'border-slate-100 shadow-sm'}`}>
+                                 <div className="p-6 lg:p-8 cursor-pointer flex items-center justify-between" onClick={() => setExpandedTemplateId(isExpanded ? null : t.id)}>
+                                   <div className="flex items-center gap-4 flex-1">
+                                     <div className={`h-10 w-10 rounded-2xl flex items-center justify-center transition-all ${isExpanded ? 'bg-orange-600 text-white rotate-90 shadow-lg shadow-orange-200' : 'bg-slate-50 text-slate-400'}`}>
+                                       <i className="fa-solid fa-chevron-right text-[10px]"></i>
+                                     </div>
+                                     <div className="flex flex-col gap-1">
+                                       <div className={`text-[13px] font-black uppercase tracking-wide transition-colors ${isExpanded ? 'text-orange-600' : 'text-slate-900'}`}>{t.label}</div>
+                                       {!isExpanded && <div className="text-[9px] font-black text-slate-300 uppercase line-clamp-1">{t.prompt.slice(0, 100)}...</div>}
+                                     </div>
+                                   </div>
+                                   <div className="flex items-center gap-3">
+                                     <div className="px-4 py-1.5 rounded-full bg-orange-50 text-orange-600 text-[8px] font-black uppercase tracking-widest border border-orange-100">Custom</div>
+                                     {isExpanded && (
+                                       <button 
+                                         onClick={(e) => {
+                                           e.stopPropagation();
+                                           setInstructionTemplates(prev => prev.filter(item => item.id !== t.id));
+                                         }} 
+                                         className="h-10 w-10 bg-rose-50 text-rose-500 rounded-2xl flex items-center justify-center hover:bg-rose-500 hover:text-white transition-all shadow-sm"
+                                       >
+                                         <i className="fa-solid fa-trash-can text-[10px]"></i>
+                                       </button>
+                                     )}
+                                   </div>
+                                 </div>
+                                 {isExpanded && (
+                                   <div className="px-8 pb-8 space-y-8 animate-in fade-in slide-in-from-top-4">
+                                     <div className="h-px bg-slate-100 w-full"></div>
+                                     
+                                     <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+                                       <div className="space-y-4">
+                                         <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-2 flex items-center gap-2">
+                                           <i className="fa-solid fa-tag text-[8px]"></i> Template Name
+                                         </label>
+                                         <input 
+                                           value={t.label} 
+                                           onChange={e => updateTemplate(t.id, { label: e.target.value })} 
+                                           className="w-full bg-slate-50 border border-slate-100 rounded-2xl px-6 py-4 outline-none focus:border-orange-500 font-bold text-slate-700 transition-all" 
+                                           placeholder="e.g., PHRASAL VERBS CHALLENGE"
+                                         />
+                                       </div>
+                                       <div className="space-y-4">
+                                         <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-2 flex items-center gap-2">
+                                           <i className="fa-solid fa-columns text-[8px]"></i> Column Layout
+                                         </label>
+                                         <div className="flex bg-slate-50 p-1 rounded-2xl border border-slate-100 gap-1">
+                                           {[0, 1, 2].map(num => (
+                                             <button
+                                               key={num}
+                                               onClick={() => updateTemplate(t.id, { columnCount: num })}
+                                               className={`flex-1 py-3 rounded-xl text-[10px] font-black transition-all ${t.columnCount === num ? 'bg-white text-orange-600 shadow-sm' : 'text-slate-400 hover:text-slate-600'}`}
+                                             >
+                                               {num === 0 ? 'AUTO' : `${num} COL`}
+                                             </button>
+                                           ))}
+                                         </div>
+                                       </div>
+                                     </div>
+
+                                     <div className="space-y-4">
+                                       <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-2 flex items-center gap-2">
+                                         <i className="fa-solid fa-brain text-[8px]"></i> Logic Injection & Formatting Rules
+                                       </label>
+                                       <textarea 
+                                         value={t.prompt} 
+                                         onChange={e => updateTemplate(t.id, { prompt: e.target.value })} 
+                                         className="w-full h-64 bg-slate-50 border border-slate-100 rounded-[32px] p-8 text-[11px] text-slate-600 font-medium outline-none resize-none focus:bg-white transition-all shadow-inner leading-relaxed" 
+                                         placeholder="Define how the AI should generate this part..."
+                                       />
+                                       <div className="flex items-center gap-2 ml-4">
+                                         <i className="fa-solid fa-circle-info text-orange-500 text-[10px]"></i>
+                                         <p className="text-[9px] font-bold text-slate-400 uppercase tracking-widest">Use tokens like <span className="text-orange-600">{"{{TOPIC}}"}</span> or <span className="text-orange-600">{"{{LEVEL}}"}</span> for dynamic injection.</p>
+                                       </div>
+                                     </div>
+                                   </div>
+                                 )}
+                              </div>
+                            );
+                          })
+                        )}
+                     </div>
+                   </div>
+                )}
                 {settingsTab === 'ENGINE' && (
                   <div className="space-y-10 animate-in fade-in slide-in-from-bottom-6">
                     <h3 className="text-[13px] font-black text-slate-900 uppercase tracking-widest">Neural Core Configuration</h3>
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                      {/* Status Banner */}
+                      {neuralStatus !== 'idle' && (
+                        <div className={`col-span-full p-6 rounded-[32px] border flex items-center gap-4 animate-in slide-in-from-top-4 ${
+                          neuralStatus === 'success' ? 'bg-emerald-50 border-emerald-100 text-emerald-800' : 
+                          neuralStatus === 'error' ? 'bg-rose-50 border-rose-100 text-rose-800' : 
+                          'bg-slate-50 border-slate-100 text-slate-600'
+                        }`}>
+                          <div className={`h-12 w-12 rounded-2xl flex items-center justify-center text-xl ${
+                            neuralStatus === 'success' ? 'bg-emerald-500 text-white' : 
+                            neuralStatus === 'error' ? 'bg-rose-500 text-white' : 
+                            'bg-slate-200 text-slate-400'
+                          }`}>
+                            <i className={`fa-solid ${
+                              neuralStatus === 'success' ? 'fa-circle-check' : 
+                              neuralStatus === 'error' ? 'fa-circle-exclamation' : 
+                              'fa-spinner fa-spin'
+                            }`}></i>
+                          </div>
+                          <div>
+                            <div className="text-[12px] font-black uppercase tracking-widest">Neural Handshake Status</div>
+                            <div className="text-[10px] font-bold opacity-70 mt-0.5">{neuralTestMessage || (neuralStatus === 'testing' ? 'Synthesizing diagnostic signal...' : 'Ready for verification.')}</div>
+                          </div>
+                        </div>
+                      )}
                       {[
                         { id: NeuralEngine.GEMINI_3_FLASH_LITE, name: 'Gemini 3.1 Flash Lite', desc: 'Ultra-fast, low-latency generation.' },
                         { id: NeuralEngine.GEMINI_3_FLASH, name: 'Gemini 3 Flash', desc: 'High-speed, balanced reasoning.' },
@@ -3576,6 +4250,20 @@ ${componentLogic}
                               >
                                 {activeEngine === engine.id ? 'Currently Active' : 'Switch Engine'}
                               </button>
+                              {activeEngine === engine.id && (
+                                <button 
+                                  onClick={testNeuralConnection}
+                                  disabled={neuralStatus === 'testing'}
+                                  className={`px-4 py-3 rounded-2xl text-[10px] font-black uppercase transition-all flex items-center gap-2 ${
+                                    neuralStatus === 'success' ? 'bg-emerald-50 text-emerald-600' : 
+                                    neuralStatus === 'error' ? 'bg-rose-50 text-rose-600' : 
+                                    'bg-slate-100 text-slate-600 hover:bg-slate-200'
+                                  }`}
+                                >
+                                  <i className={`fa-solid ${neuralStatus === 'testing' ? 'fa-spinner fa-spin' : 'fa-bolt'}`}></i>
+                                  {neuralStatus === 'testing' ? 'Testing...' : 'Test Handshake'}
+                                </button>
+                              )}
                               {externalKeys[engine.id as keyof ExternalKeys] && (
                                 <button 
                                   onClick={() => {

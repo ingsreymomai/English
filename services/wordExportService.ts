@@ -219,6 +219,76 @@ export const exportToWord = async (
           (el as HTMLElement).style.fontWeight = 'bold';
           (el as HTMLElement).style.fontSize = '13pt';
         }
+        // Apply Style 6: Shadow
+        else if (mcqStyle === 6) {
+          el.innerHTML = text;
+          (el as HTMLElement).style.border = '0.5pt solid #cbd5e1';
+          (el as HTMLElement).style.backgroundColor = '#ffffff';
+          (el as HTMLElement).style.boxShadow = '2pt 2pt 0 #cbd5e1';
+        }
+        // Apply Style 7: Double Circle
+        else if (mcqStyle === 7) {
+          if (text === 'A') el.innerHTML = 'Ⓐ';
+          else if (text === 'B') el.innerHTML = 'Ⓑ';
+          else if (text === 'C') el.innerHTML = 'Ⓒ';
+          else if (text === 'D') el.innerHTML = 'Ⓓ';
+          (el as HTMLElement).style.fontSize = '14pt';
+          (el as HTMLElement).style.border = '0.5pt solid #334155';
+          (el as HTMLElement).style.borderRadius = '11pt';
+        }
+        // Apply Style 8: Neon
+        else if (mcqStyle === 8) {
+          el.innerHTML = text;
+          (el as HTMLElement).style.backgroundColor = '#000000';
+          (el as HTMLElement).style.color = '#00ff00';
+          (el as HTMLElement).style.border = '1pt solid #00ff00';
+          (el as HTMLElement).style.fontFamily = 'Courier New';
+        }
+        // Apply Style 9: Brutalist
+        else if (mcqStyle === 9) {
+          el.innerHTML = text;
+          (el as HTMLElement).style.backgroundColor = '#facc15';
+          (el as HTMLElement).style.color = '#000000';
+          (el as HTMLElement).style.border = '1.5pt solid #000000';
+          (el as HTMLElement).style.fontWeight = '900';
+        }
+        // Apply Style 10: Soft Glow
+        else if (mcqStyle === 10) {
+          el.innerHTML = text;
+          (el as HTMLElement).style.backgroundColor = '#fdf2f8';
+          (el as HTMLElement).style.color = '#db2777';
+          (el as HTMLElement).style.borderRadius = '11pt';
+        }
+        // Apply Style 11: Diamond
+        else if (mcqStyle === 11) {
+          el.innerHTML = text;
+          (el as HTMLElement).style.border = '0.5pt solid #475569';
+          (el as HTMLElement).style.backgroundColor = '#f1f5f9';
+        }
+        // Apply Style 12: Hexagon
+        else if (mcqStyle === 12) {
+          el.innerHTML = text;
+          (el as HTMLElement).style.backgroundColor = '#e2e8f0';
+          (el as HTMLElement).style.border = '0.5pt solid #94a3b8';
+        }
+        // Apply Style 13: Badge
+        else if (mcqStyle === 13) {
+          el.innerHTML = text;
+          (el as HTMLElement).style.backgroundColor = '#334155';
+          (el as HTMLElement).style.color = '#ffffff';
+          (el as HTMLElement).style.padding = '2pt 4pt';
+        }
+        // Apply Style 14: Minimalist Dot
+        else if (mcqStyle === 14) {
+          el.innerHTML = text + ' •';
+        }
+        // Apply Style 15: Gradient
+        else if (mcqStyle === 15) {
+          el.innerHTML = text;
+          (el as HTMLElement).style.backgroundColor = '#6366f1';
+          (el as HTMLElement).style.color = '#ffffff';
+          (el as HTMLElement).style.borderRadius = '11pt';
+        }
 
         // Common cleanup for styled MCQs
         if (mcqStyle !== 0) {
@@ -450,31 +520,112 @@ export const exportToWord = async (
                 cell.style.color = '#334155';
                 cell.style.textAlign = 'left';
                 cell.style.padding = '5pt 0';
-              } else if (instructionHeaderStyle === 11) {
-                cell.style.backgroundColor = '#1e293b';
-                cell.style.setProperty('mso-shading', 'windowtext 0% #1e293b');
-                cell.style.color = '#ffffff';
-                cell.style.textAlign = 'center';
-                cell.style.padding = '12pt';
-              } else if (instructionHeaderStyle === 12) {
-                cell.style.backgroundColor = '#ecfdf5';
-                cell.style.setProperty('mso-shading', 'windowtext 0% #ecfdf5');
-                cell.style.color = '#065f46';
-                cell.style.border = '2pt solid #10b981';
-                cell.style.setProperty('mso-border-alt', '2pt solid #10b981');
-                cell.style.textAlign = 'center';
-              } else if (instructionHeaderStyle === 13) {
-                cell.style.backgroundColor = '#facc15';
-                cell.style.setProperty('mso-shading', 'windowtext 0% #facc15');
-                cell.style.color = '#000000';
-                cell.style.border = '3pt solid #000000';
-                cell.style.setProperty('mso-border-alt', '3pt solid #000000');
-                cell.style.fontWeight = '900';
-              } else {
-                cell.style.borderBottom = '2.5pt solid #334155';
-                cell.style.setProperty('mso-border-bottom-alt', '2.5pt solid #334155');
-                cell.style.textAlign = 'center';
-              }
+        } else if (instructionHeaderStyle === 11) {
+          cell.style.border = 'none';
+          cell.style.borderBottom = '4pt double #059669';
+          cell.style.setProperty('mso-border-bottom-alt', '4pt double #059669');
+          cell.style.color = '#059669';
+          cell.style.textAlign = 'left';
+          cell.style.padding = '8pt 0';
+        } else if (instructionHeaderStyle === 12) {
+          cell.style.border = '1.5pt dotted #2563eb';
+          cell.style.setProperty('mso-border-alt', '1.5pt dotted #2563eb');
+          cell.style.color = '#1e40af';
+          cell.style.backgroundColor = '#eff6ff';
+          cell.style.setProperty('mso-shading', 'windowtext 0% #eff6ff');
+          cell.style.borderRadius = '4pt';
+        } else if (instructionHeaderStyle === 13) {
+          cell.style.border = 'none';
+          cell.style.borderBottom = '6pt solid #dc2626';
+          cell.style.setProperty('mso-border-bottom-alt', '6pt solid #dc2626');
+          cell.style.color = '#991b1b';
+          cell.style.textAlign = 'left';
+          cell.style.padding = '10pt 0';
+          cell.style.fontWeight = '900';
+        } else if (instructionHeaderStyle === 14) {
+          cell.style.background = 'linear-gradient(90deg, #7c3aed, #db2777)';
+          cell.style.setProperty('mso-shading', 'windowtext 0% #7c3aed');
+          cell.style.color = '#ffffff';
+          cell.style.borderRadius = '12pt';
+          cell.style.padding = '12pt';
+        } else if (instructionHeaderStyle === 15) {
+          cell.style.borderLeft = '10pt solid #0f172a';
+          cell.style.setProperty('mso-border-left-alt', '10pt solid #0f172a');
+          cell.style.backgroundColor = '#f1f5f9';
+          cell.style.setProperty('mso-shading', 'windowtext 0% #f1f5f9');
+          cell.style.color = '#0f172a';
+          cell.style.textAlign = 'left';
+          cell.style.paddingLeft = '20pt';
+        } else if (instructionHeaderStyle === 16) {
+          cell.style.border = '2pt dashed #64748b';
+          cell.style.setProperty('mso-border-alt', '2pt dashed #64748b');
+          cell.style.color = '#475569';
+          cell.style.backgroundColor = 'transparent';
+        } else if (instructionHeaderStyle === 17) {
+          cell.style.backgroundColor = '#ffffff';
+          cell.style.setProperty('mso-shading', 'windowtext 0% #ffffff');
+          cell.style.color = '#1e293b';
+          cell.style.border = '1pt solid #e2e8f0';
+          cell.style.setProperty('mso-border-alt', '1pt solid #e2e8f0');
+        } else if (instructionHeaderStyle === 18) {
+          cell.style.backgroundColor = '#facc15';
+          cell.style.setProperty('mso-shading', 'windowtext 0% #facc15');
+          cell.style.color = '#000000';
+          cell.style.border = '3pt solid #000000';
+          cell.style.setProperty('mso-border-alt', '3pt solid #000000');
+          cell.style.fontWeight = '900';
+        } else if (instructionHeaderStyle === 19) {
+          cell.style.backgroundColor = '#92400e';
+          cell.style.setProperty('mso-shading', 'windowtext 0% #92400e');
+          cell.style.color = '#fef3c7';
+          cell.style.border = '1pt solid #f59e0b';
+          cell.style.setProperty('mso-border-alt', '1pt solid #f59e0b');
+        } else if (instructionHeaderStyle === 20) {
+          cell.style.border = 'none';
+          cell.style.borderBottom = '0.5pt solid #cbd5e1';
+          cell.style.setProperty('mso-border-bottom-alt', '0.5pt solid #cbd5e1');
+          cell.style.color = '#94a3b8';
+          cell.style.textAlign = 'right';
+          cell.style.fontSize = '9pt';
+        } else if (instructionHeaderStyle === 21) {
+          cell.style.backgroundColor = '#1e293b';
+          cell.style.setProperty('mso-shading', 'windowtext 0% #1e293b');
+          cell.style.color = '#ffffff';
+          cell.style.textAlign = 'center';
+          cell.style.padding = '12pt';
+        } else if (instructionHeaderStyle === 22) {
+          cell.style.backgroundColor = '#ecfdf5';
+          cell.style.setProperty('mso-shading', 'windowtext 0% #ecfdf5');
+          cell.style.color = '#065f46';
+          cell.style.border = '2pt solid #10b981';
+          cell.style.setProperty('mso-border-alt', '2pt solid #10b981');
+          cell.style.textAlign = 'center';
+        } else if (instructionHeaderStyle === 23) {
+          cell.style.backgroundColor = '#facc15';
+          cell.style.setProperty('mso-shading', 'windowtext 0% #facc15');
+          cell.style.color = '#000000';
+          cell.style.border = '3pt solid #000000';
+          cell.style.setProperty('mso-border-alt', '3pt solid #000000');
+          cell.style.fontWeight = '900';
+        } else if (instructionHeaderStyle === 25) {
+          cell.style.borderLeft = '15pt solid #1e40af';
+          cell.style.backgroundColor = '#eff6ff';
+          cell.style.color = '#1e40af';
+          cell.style.padding = '15pt';
+          cell.style.fontWeight = 'bold';
+        } else if (instructionHeaderStyle === 26) {
+          cell.style.border = '1pt solid #cbd5e1';
+          cell.style.borderBottom = '4pt solid #334155';
+          cell.style.backgroundColor = '#f8fafc';
+          cell.style.color = '#334155';
+          cell.style.textAlign = 'center';
+          cell.style.textTransform = 'uppercase';
+          cell.style.letterSpacing = '0.1em';
+        } else {
+          cell.style.borderBottom = '2.5pt solid #334155';
+          cell.style.setProperty('mso-border-bottom-alt', '2.5pt solid #334155');
+          cell.style.textAlign = 'center';
+        }
             }
           });
         });
